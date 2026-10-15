@@ -1,4 +1,3 @@
-
 import logging
 import json
 import os
@@ -38,8 +37,8 @@ API_PRICE_TRACKING_FILE = "api_price_tracking.json"
 MAINTENANCE_FILE = "maintenance_mode.json"
 SUBCATEGORY_GROUPS_FILE = "subcategory_groups.json"
 TICKER_FILE = "ticker_settings.json"
-AUTO_DEPOSIT_METHODS_FILE = "auto_deposit_methods.json"
-USED_TRANSACTIONS_FILE = "used_transactions.json"
+AUTO_DEPOSIT_FILE = "auto_deposit_methods.json"
+SHAMCASH_TX_FILE = "shamcash_transactions.json"
 
 # --------------------------------------------------
 # إعدادات بوت التليجرام للإشعارات
@@ -300,6 +299,42 @@ def send_telegram_deposit_notification(method_name, amount, tx_id, email, receip
             logging.warning(f"فشل إرسال صورة الإشعار: {e}")
 
 
+def send_telegram_auto_deposit_notification(method_name, amount, tx_id, email, user_balance, new_balance, tx_details):
+    if not TELEGRAM_PURCHASE_BOT_TOKEN or TELEGRAM_PURCHASE_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN":
+        logging.warning("لم يتم ضبط توكن بوت إشعارات الإيداع التلقائي.")
+        return
+
+    telegram_url = f"https://api.telegram.org/bot{TELEGRAM_PURCHASE_BOT_TOKEN}/sendMessage"
+    headers = {"Content-Type": "application/json"}
+
+    message = (
+        f'<tg-emoji emoji-id="5409048419211682843">✅</tg-emoji> <b>إيداع تلقائي ناجح!</b>\n'
+        f'ــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ\n'
+        f'<tg-emoji emoji-id="5253742260054409879">🏷️</tg-emoji> <b>طريقة الإيداع:</b> {method_name}\n'
+        f'<tg-emoji emoji-id="5409048419211682843">💵</tg-emoji> <b>المبلغ المحول:</b> {amount} $\n'
+        f'<tg-emoji emoji-id="5321244246705989720">🔢</tg-emoji> <b>رقم العملية:</b> {tx_id}\n'
+        f'<tg-emoji emoji-id="5321244246705989720">📧</tg-emoji> <b>إيميل المستخدم:</b> {email}\n'
+        f'<tg-emoji emoji-id="5296369303661067030">💳</tg-emoji> <b>الرصيد قبل:</b> {user_balance} $\n'
+        f'<tg-emoji emoji-id="5296369303661067030">💳</tg-emoji> <b>الرصيد بعد:</b> {new_balance} $\n'
+        f'ــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ\n'
+        f'<tg-emoji emoji-id="5839437853469186962">📋</tg-emoji> <b>تفاصيل العملية:</b>\n'
+        f'<code>{json.dumps(tx_details, ensure_ascii=False, indent=2)[:800]}</code>'
+    )
+
+    payload = json.dumps({
+        "chat_id": TELEGRAM_ADMIN_CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML"
+    }).encode("utf-8")
+
+    try:
+        req = urllib.request.Request(telegram_url, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=8) as res:
+            logging.info("تم إرسال إشعار الإيداع التلقائي للتليجرام.")
+    except Exception as e:
+        logging.error(f"فشل إرسال إشعار الإيداع التلقائي: {e}")
+
+
 def send_telegram_new_user_notification(email, password, phone, user_ip, currency_name, currency_symbol, currency_rate):
     if not TELEGRAM_PURCHASE_BOT_TOKEN or TELEGRAM_PURCHASE_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN":
         logging.warning("لم يتم ضبط توكن بوت إشعارات التسجيل.")
@@ -403,7 +438,6 @@ DEFAULT_APPEARANCE = {
     "sidebar_width": 300,
     "deposit_card_size": 100,
     "category_card_size": 100,
-    # ===== ألوان الوضع الداكن =====
     "dark_bg_color": "#050508",
     "dark_card_bg": "#121212",
     "dark_border_color": "#27272a",
@@ -411,7 +445,6 @@ DEFAULT_APPEARANCE = {
     "dark_subtext_color": "#a1a1aa",
     "dark_sidebar_bg": "#09090f",
     "dark_input_bg": "#000000",
-    # ===== ألوان الوضع الفاتح =====
     "light_bg_color": "#f4f4f5",
     "light_card_bg": "#ffffff",
     "light_border_color": "#e4e4e7",
@@ -420,7 +453,6 @@ DEFAULT_APPEARANCE = {
     "light_sidebar_bg": "#ffffff",
     "light_input_bg": "#f4f4f5",
     "light_accent_color": "#0284c7",
-    # ===== PWA =====
     "pwa_name": "SYRIA CARD ONE",
     "pwa_short_name": "SyriaCard",
     "pwa_theme_color": "#00897b",
@@ -437,31 +469,6 @@ DEFAULT_MAINTENANCE = {
 DEFAULT_TICKER = {
     "text": "عالمك الرقمي المتكامل صُمم لك خصيصاً",
     "color": "#38bdf8"
-}
-
-DEFAULT_AUTO_DEPOSIT_METHODS = {
-    "sham_cash_usd": {
-        "id": "sham_cash_usd",
-        "name": "شام كاش دولار",
-        "enabled": False,
-        "api_token": "",
-        "exchange_rate": 1,
-        "deposit_title": "",
-        "image": "",
-        "description": "",
-        "currency_type": "USD"
-    },
-    "sham_cash_syp": {
-        "id": "sham_cash_syp",
-        "name": "شام كاش سوري",
-        "enabled": False,
-        "api_token": "",
-        "exchange_rate": 1,
-        "deposit_title": "",
-        "image": "",
-        "description": "",
-        "currency_type": "SYP"
-    }
 }
 
 
@@ -506,8 +513,33 @@ API_PRICE_TRACKING_DATA = load_json_file(API_PRICE_TRACKING_FILE, {})
 MAINTENANCE_DATA = load_json_file(MAINTENANCE_FILE, DEFAULT_MAINTENANCE)
 SUBCATEGORY_GROUPS_DATA = load_json_file(SUBCATEGORY_GROUPS_FILE, {})
 TICKER_DATA = load_json_file(TICKER_FILE, DEFAULT_TICKER)
-AUTO_DEPOSIT_METHODS_DATA = load_json_file(AUTO_DEPOSIT_METHODS_FILE, DEFAULT_AUTO_DEPOSIT_METHODS)
-USED_TRANSACTIONS_DATA = load_json_file(USED_TRANSACTIONS_FILE, [])
+AUTO_DEPOSIT_DATA = load_json_file(AUTO_DEPOSIT_FILE, [
+    {
+        "id": "sham_cash_usd",
+        "name": "شام كاش دولار",
+        "enabled": False,
+        "api_token": "",
+        "display_name": "شام كاش دولار",
+        "exchange_rate": 1,
+        "address": "",
+        "image": "",
+        "description": "",
+        "coin_id": "USD"
+    },
+    {
+        "id": "sham_cash_syp",
+        "name": "شام كاش سوري",
+        "enabled": False,
+        "api_token": "",
+        "display_name": "شام كاش سوري",
+        "exchange_rate": 1,
+        "address": "",
+        "image": "",
+        "description": "",
+        "coin_id": "SYP"
+    }
+])
+SHAMCASH_TX_DATA = load_json_file(SHAMCASH_TX_FILE, {})
 
 # Ensure sidebar_font_size & sidebar_width & deposit_card_size & category_card_size keys exist for backward compatibility
 if "sidebar_font_size" not in APPEARANCE_DATA:
@@ -534,12 +566,6 @@ for k, v in DEFAULT_APPEARANCE.items():
     if k not in APPEARANCE_DATA:
         APPEARANCE_DATA[k] = v
 save_json_file(APPEARANCE_FILE, APPEARANCE_DATA)
-
-# دمج مفاتيح جديدة من DEFAULT_AUTO_DEPOSIT_METHODS في حال عدم وجودها
-for k, v in DEFAULT_AUTO_DEPOSIT_METHODS.items():
-    if k not in AUTO_DEPOSIT_METHODS_DATA:
-        AUTO_DEPOSIT_METHODS_DATA[k] = v
-save_json_file(AUTO_DEPOSIT_METHODS_FILE, AUTO_DEPOSIT_METHODS_DATA)
 
 
 def get_user_by_api_token(token):
@@ -579,173 +605,51 @@ def add_user_notification(email, order_uuid, message, status):
     save_json_file(NOTIFICATIONS_FILE, NOTIFICATIONS_DATA)
 
 
-def verify_shamcash_transaction(api_token, transaction_id, expected_amount, currency_type, exchange_rate):
-    """
-    التحقق من عملية تحويل في ShamCash API
-    - currency_type: 'USD' أو 'SYP'
-    - exchange_rate: سعر الصرف للتحويل
-    - expected_amount: المبلغ المتوقع بالدولار
-    """
-    try:
-        base_url = "https://api.shamcash-api.com/v1"
-        headers = {
-            'Authorization': f'Bearer {api_token}',
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-
-        # 1) جلب الحسابات
-        req = urllib.request.Request(f"{base_url}/accounts", headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as response:
-            accounts_data = json.loads(response.read().decode('utf-8'))
-
-        if accounts_data.get('status') != 'success':
-            return {
-                "success": False,
-                "error": accounts_data.get('message', 'فشل جلب الحسابات'),
-                "code": accounts_data.get('code', 'UNKNOWN')
-            }
-
-        accounts = accounts_data.get('data', [])
-        if not accounts:
-            return {"success": False, "error": "لا توجد حسابات مرتبطة", "code": "NO_ACCOUNTS"}
-
-        # نأخذ أول حساب نشط
-        account_id = None
-        for acc in accounts:
-            if acc.get('status') == 'active':
-                account_id = acc.get('id')
-                break
-        if not account_id:
-            account_id = accounts[0].get('id')
-
-        # 2) جلب المعاملات - نبحث عن رقم العملية المحدد
-        # نبحث في آخر 30 يوم
-        from datetime import timedelta
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=30)
-
-        start_at = start_date.strftime("%Y-%m-%d")
-        end_at = end_date.strftime("%Y-%m-%d")
-
-        trans_url = f"{base_url}/transactions?account_id={account_id}&start_at={start_at}&end_at={end_at}&limit=200&transaction_ids={transaction_id}"
-        req2 = urllib.request.Request(trans_url, headers=headers)
-        with urllib.request.urlopen(req2, timeout=20) as response:
-            trans_data = json.loads(response.read().decode('utf-8'))
-
-        if trans_data.get('status') != 'success':
-            return {
-                "success": False,
-                "error": trans_data.get('message', 'فشل جلب المعاملات'),
-                "code": trans_data.get('code', 'UNKNOWN')
-            }
-
-        transactions = trans_data.get('data', {}).get('transactions', [])
-        if not transactions:
-            return {"success": False, "error": "لم يتم العثور على العملية المحددة", "code": "NOT_FOUND"}
-
-        # 3) البحث عن العملية المطابقة
-        matched_tx = None
-        for tx in transactions:
-            tx_id = str(tx.get('id', ''))
-            tx_ref = str(tx.get('reference', ''))
-            tx_txid = str(tx.get('transaction_id', ''))
-            if transaction_id in [tx_id, tx_ref, tx_txid]:
-                matched_tx = tx
-                break
-
-        if not matched_tx:
-            return {"success": False, "error": "رقم العملية غير موجود", "code": "NOT_FOUND"}
-
-        # 4) التحقق من العملة
-        coin_id = matched_tx.get('coin_id')
-        tx_currency = str(matched_tx.get('currency', '') or matched_tx.get('coin', '') or '').upper()
-
-        # فلترة حسب العملة
-        if currency_type == 'USD':
-            if tx_currency and tx_currency not in ['USD', 'DOLLAR', 'USDT', '1']:
-                return {"success": False, "error": "العملية ليست بالدولار", "code": "CURRENCY_MISMATCH"}
-        elif currency_type == 'SYP':
-            if tx_currency and tx_currency not in ['SYP', 'SYP', 'SYP', '2', 'SYP']:
-                return {"success": False, "error": "العملية ليست بالليرة السورية", "code": "CURRENCY_MISMATCH"}
-
-        # 5) التحقق من المبلغ - مطابقة تامة بدون أي تسامح
-        tx_amount = float(matched_tx.get('amount', 0))
-        expected_local = float(expected_amount) * float(exchange_rate)  # المبلغ المتوقع بالعملة المحلية
-
-        # مطابقة دقيقة 100%
-        if round(tx_amount, 2) != round(expected_local, 2):
-            return {
-                "success": False,
-                "error": f"المبلغ غير متطابق. المتوقع: {expected_local:.2f}، الفعلي: {tx_amount:.2f}",
-                "code": "AMOUNT_MISMATCH",
-                "expected": expected_local,
-                "actual": tx_amount
-            }
-
-        # ✅ كل شيء صحيح
-        return {
-            "success": True,
-            "transaction": {
-                "id": matched_tx.get('id'),
-                "amount": tx_amount,
-                "currency": tx_currency,
-                "occurred_at": matched_tx.get('occurred_at', ''),
-                "reference": matched_tx.get('reference', ''),
-                "sender": matched_tx.get('sender', '') or matched_tx.get('from', ''),
-                "receiver": matched_tx.get('receiver', '') or matched_tx.get('to', '')
-            }
-        }
-
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode('utf-8') if e.fp else ''
-        logging.error(f"ShamCash HTTP Error: {e.code} - {err_body}")
-        try:
-            err_json = json.loads(err_body)
-            return {"success": False, "error": err_json.get('message', f'خطأ HTTP {e.code}'), "code": err_json.get('code', 'HTTP_ERROR')}
-        except:
-            return {"success": False, "error": f"خطأ HTTP {e.code}", "code": "HTTP_ERROR"}
-    except Exception as e:
-        logging.error(f"ShamCash Verification Error: {e}")
-        return {"success": False, "error": str(e), "code": "EXCEPTION"}
+# --------------------------------------------------
+# ShamCash API Helper
+# --------------------------------------------------
+def shamcash_api_request(api_token, endpoint, params=None):
+    """إرسال طلب إلى ShamCash API"""
+    base_url = "https://api.shamcash-api.com/v1"
+    url = f"{base_url}{endpoint}"
+    
+    if params:
+        query_string = urllib.parse.urlencode(params)
+        url = f"{url}?{query_string}"
+    
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=20) as response:
+        return json.loads(response.read().decode('utf-8'))
 
 
-def send_telegram_auto_deposit_notification(email, method_name, amount_usd, tx_id, new_balance, tx_details):
-    """إشعار تيليجرام لعملية الإيداع التلقائي الناجحة"""
-    if not TELEGRAM_PURCHASE_BOT_TOKEN or TELEGRAM_PURCHASE_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN":
-        return
+def shamcash_get_accounts(api_token):
+    """جلب قائمة الحسابات المرتبطة"""
+    return shamcash_api_request(api_token, "/accounts")
 
-    telegram_url = f"https://api.telegram.org/bot{TELEGRAM_PURCHASE_BOT_TOKEN}/sendMessage"
-    headers = {"Content-Type": "application/json"}
 
-    tx_occurred = tx_details.get('occurred_at', '-')
-    tx_ref = tx_details.get('reference', '-')
+def shamcash_get_balances(api_token, account_id):
+    """جلب أرصدة الحساب"""
+    return shamcash_api_request(api_token, "/balances", {"account_id": account_id})
 
-    message = (
-        f'<tg-emoji emoji-id="5420323339723881652">💸</tg-emoji> <b>إيداع تلقائي ناجح!</b>\n'
-        f'ــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ\n'
-        f'<tg-emoji emoji-id="5253742260054409879">🏷️</tg-emoji> <b>طريقة الإيداع:</b> {method_name}\n'
-        f'<tg-emoji emoji-id="5409048419211682843">💵</tg-emoji> <b>المبلغ المضاف:</b> {amount_usd} $\n'
-        f'<tg-emoji emoji-id="5321244246705989720">🔢</tg-emoji> <b>رقم العملية:</b> <code>{tx_id}</code>\n'
-        f'<tg-emoji emoji-id="5321244246705989720">📧</tg-emoji> <b>الإيميل:</b> {email}\n'
-        f'<tg-emoji emoji-id="5409048419211682843">💳</tg-emoji> <b>الرصيد الجديد:</b> {new_balance} $\n'
-        f'ــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ\n'
-        f'<tg-emoji emoji-id="5839437853469186962">📅</tg-emoji> <b>وقت العملية:</b> {tx_occurred}\n'
-        f'<tg-emoji emoji-id="5287480366330816274">🔗</tg-emoji> <b>المرجع:</b> {tx_ref}'
-    )
 
-    payload = json.dumps({
-        "chat_id": TELEGRAM_ADMIN_CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML"
-    }).encode("utf-8")
-
-    try:
-        req = urllib.request.Request(telegram_url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=8) as res:
-            logging.info("تم إرسال إشعار الإيداع التلقائي للتليجرام.")
-    except Exception as e:
-        logging.error(f"فشل إرسال إشعار الإيداع التلقائي: {e}")
+def shamcash_get_transactions(api_token, account_id, start_at=None, end_at=None, transaction_ids=None, coin_id=None, limit=20):
+    """جلب معاملات الحساب"""
+    params = {"account_id": account_id, "limit": limit}
+    if start_at:
+        params["start_at"] = start_at
+    if end_at:
+        params["end_at"] = end_at
+    if transaction_ids:
+        params["transaction_ids"] = ",".join(str(tid) for tid in transaction_ids)
+    if coin_id:
+        params["coin_id"] = str(coin_id)
+    return shamcash_api_request(api_token, "/transactions", params)
 
 
 # --------------------------------------------------
@@ -941,9 +845,6 @@ class ApiPriceMonitor:
             time.sleep(self.check_interval)
 
     def _check_all_api_linked_subcategories(self):
-        """مراقبة أسعار جميع الفئات المربوطة بـ API (سواء مستوردة أو مضافة يدوياً)"""
-        
-        # نجمع كل الفئات المربوطة بـ API حسب المزود
         subcats_by_provider = {}
         for sub in SUBCATEGORIES_DATA:
             provider_name = sub.get('provider_name')
@@ -958,7 +859,6 @@ class ApiPriceMonitor:
             logging.info("لا توجد فئات مربوطة بـ API حالياً للمراقبة")
             return
 
-        # نفحص كل مزود على حدة
         for provider_name, subcats in subcats_by_provider.items():
             provider = next((p for p in PROVIDERS_DATA if p.get('name') == provider_name), None)
             if not provider:
@@ -976,7 +876,6 @@ class ApiPriceMonitor:
                     logging.warning(f"استجابة المزود {provider_name} ليست قائمة منتجات")
                     continue
 
-                # نبني قاموس للوصول السريع
                 api_map = {}
                 for ap in api_products:
                     api_map[str(ap.get('id'))] = ap
@@ -995,21 +894,14 @@ class ApiPriceMonitor:
                     old_price = float(subcat.get('price', 0))
                     old_base = float(subcat.get('base_price', 0))
                     
-                    # السعر الأساسي الجديد من المزود
                     new_base = float(api_product.get('base_price', api_product.get('price', old_base)))
-                    
-                    # نسبة الربح المخزنة للفئة
                     profit_margin = float(subcat.get('profit_margin', 0))
-                    
-                    # السعر النهائي بعد الربح
                     new_price = round(new_base * (1 + (profit_margin / 100.0)), 3)
 
-                    # إذا كان في تغيير
                     if abs(new_price - old_price) > 0.001 or abs(new_base - old_base) > 0.001:
                         subcat['base_price'] = new_base
                         subcat['price'] = new_price
                         
-                        # نحدث counter_min_price إذا كانت عداد
                         if subcat.get('is_counter'):
                             subcat['counter_min_price'] = new_price
                         
@@ -1030,7 +922,6 @@ class ApiPriceMonitor:
                 else:
                     logging.info(f"لا توجد تغييرات في أسعار المزود {provider_name} - عدد الفئات المفحوصة: {len(subcats)}")
 
-                # نحدث وقت آخر فحص للمستوردين
                 for import_key, import_info in API_IMPORTS_DATA.items():
                     if import_info.get('provider_name') == provider_name:
                         API_IMPORTS_DATA[import_key]['last_price_check'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1292,7 +1183,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Changa:wght@400;600;700;800&family=El+Messiri:wght@400;600;700&family=Lateef&family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Kufi+Arabic:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Readex+Pro:wght@400;600;700&family=Alexandria:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;700&family=Harmattan&family=Mada:wght@400;700&display=swap" rel="stylesheet">
     <style id="dynamicStyles">
         :root {
-            /* ألوان الوضع الداكن (افتراضية) */
             --dark-bg-color: #050508;
             --dark-card-bg: #121212;
             --dark-border-color: #27272a;
@@ -1301,7 +1191,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             --dark-sidebar-bg: #09090f;
             --dark-input-bg: #000000;
 
-            /* ألوان الوضع الفاتح (افتراضية) */
             --light-bg-color: #f4f4f5;
             --light-card-bg: #ffffff;
             --light-border-color: #e4e4e7;
@@ -1311,7 +1200,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             --light-input-bg: #f4f4f5;
             --light-accent-color: #0284c7;
 
-            /* الألوان النشطة (تتغير حسب الثيم) */
             --bg-color: var(--dark-bg-color);
             --card-bg: var(--dark-card-bg);
             --border-color: var(--dark-border-color);
@@ -1324,7 +1212,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             --deposit-label-color: #ffffff;
             --sidebar-item-color: #ffffff;
 
-            /* ألوان الهيدر */
             --top-header-c1: #004d40;
             --top-header-c2: #00897b;
             --top-header-c3: #26a69a;
@@ -1332,7 +1219,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             --bottom-nav-c2: #059669;
             --bottom-nav-c3: #0d9488;
 
-            /* الأحجام */
             --general-font-size: 14px;
             --sidebar-font-size: 14px;
             --top-header-height: 65px;
@@ -1387,107 +1273,36 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             gap: 15px;
         }
 
-        /* للأجهزة اللوحية والكمبيوتر */
         @media (min-width: 768px) {
-            body {
-                max-width: 750px;
-                margin: 0 auto;
-            }
-            
-            .grid-container {
-                grid-template-columns: repeat(4, 1fr) !important;
-                gap: 20px 16px !important;
-            }
-            
-            .header {
-                border-radius: 0 0 16px 16px;
-            }
-            
-            .banner-container {
-                max-width: 90%;
-                height: 180px;
-            }
-            
-            .sidebar {
-                max-width: 380px;
-            }
+            body { max-width: 750px; margin: 0 auto; }
+            .grid-container { grid-template-columns: repeat(4, 1fr) !important; gap: 20px 16px !important; }
+            .header { border-radius: 0 0 16px 16px; }
+            .banner-container { max-width: 90%; height: 180px; }
+            .sidebar { max-width: 380px; }
         }
 
-        /* للشاشات الكبيرة (لابتوب/كمبيوتر) */
         @media (min-width: 1024px) {
-            body {
-                max-width: 900px;
-            }
-            
-            .grid-container {
-                grid-template-columns: repeat(5, 1fr) !important;
-                gap: 24px 18px !important;
-            }
-            
-            .banner-container {
-                max-width: 880px;
-                height: 220px;
-            }
-            
-            .bottom-nav-bar {
-                max-width: 900px;
-                left: 50%;
-                transform: translateX(-50%);
-                border-radius: 20px 20px 0 0;
-            }
-            
-            .main-content-wrapper {
-                max-width: 880px;
-                margin: 0 auto;
-            }
-            
-            .ticker-wrapper {
-                max-width: 880px;
-            }
+            body { max-width: 900px; }
+            .grid-container { grid-template-columns: repeat(5, 1fr) !important; gap: 24px 18px !important; }
+            .banner-container { max-width: 880px; height: 220px; }
+            .bottom-nav-bar { max-width: 900px; left: 50%; transform: translateX(-50%); border-radius: 20px 20px 0 0; }
+            .main-content-wrapper { max-width: 880px; margin: 0 auto; }
+            .ticker-wrapper { max-width: 880px; }
         }
 
-        /* للشاشات الكبيرة جداً */
         @media (min-width: 1440px) {
-            body {
-                max-width: 1100px;
-            }
-            
-            .grid-container {
-                grid-template-columns: repeat(6, 1fr) !important;
-            }
-            
-            .banner-container {
-                max-width: 1080px;
-                height: 280px;
-            }
-            
-            .bottom-nav-bar {
-                max-width: 1100px;
-            }
-            
-            .main-content-wrapper {
-                max-width: 1080px;
-            }
-            
-            .ticker-wrapper {
-                max-width: 1080px;
-            }
+            body { max-width: 1100px; }
+            .grid-container { grid-template-columns: repeat(6, 1fr) !important; }
+            .banner-container { max-width: 1080px; height: 280px; }
+            .bottom-nav-bar { max-width: 1100px; }
+            .main-content-wrapper { max-width: 1080px; }
+            .ticker-wrapper { max-width: 1080px; }
         }
 
-        /* للهواتف الصغيرة */
         @media (max-width: 360px) {
-            .store-name {
-                font-size: 0.85rem !important;
-            }
-            
-            .balance-text {
-                font-size: 0.7rem !important;
-            }
-            
-            .grid-container {
-                grid-template-columns: repeat(2, 1fr) !important;
-                gap: 12px 8px !important;
-            }
+            .store-name { font-size: 0.85rem !important; }
+            .balance-text { font-size: 0.7rem !important; }
+            .grid-container { grid-template-columns: repeat(2, 1fr) !important; gap: 12px 8px !important; }
         }
 
         #pageTransitionLoader {
@@ -1551,19 +1366,9 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             transition: opacity 0.4s ease, visibility 0.4s ease;
         }
         #splashScreen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-        .splash-logo {
-            width: 130px; height: 130px; object-fit: cover; border-radius: 50%;
-            border: 2px solid var(--border-color); box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
-        }
-        .splash-spinner {
-            width: 42px; height: 42px; border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top: 3px solid var(--accent-color); border-radius: 50%; animation: spin 0.9s linear infinite;
-        }
-        .btn-spinner {
-            display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0, 0, 0, 0.2);
-            border-top: 2px solid #000; border-radius: 50%; animation: spin 0.8s linear infinite;
-            vertical-align: middle; margin-left: 6px;
-        }
+        .splash-logo { width: 130px; height: 130px; object-fit: cover; border-radius: 50%; border: 2px solid var(--border-color); box-shadow: 0 0 20px rgba(56, 189, 248, 0.3); }
+        .splash-spinner { width: 42px; height: 42px; border: 3px solid rgba(255, 255, 255, 0.1); border-top: 3px solid var(--accent-color); border-radius: 50%; animation: spin 0.9s linear infinite; }
+        .btn-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0, 0, 0, 0.2); border-top: 2px solid #000; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-left: 6px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .header {
@@ -1574,61 +1379,20 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             overflow: hidden; transition: height 0.2s ease;
         }
         .header-right { display: flex; align-items: center; gap: 8px; }
-        .header-logo {
-            width: calc(var(--top-header-height) * 0.55); height: calc(var(--top-header-height) * 0.55);
-            max-width: 45px; max-height: 45px;
-            border-radius: 8px; object-fit: cover;
-            border: 1px solid rgba(255,255,255,0.3); background: #000;
-        }
-        .store-name { 
-            font-size: calc(var(--top-header-height) * 0.25 + 4px); 
-            font-weight: 800; color: #ffffff; letter-spacing: 0.5px; 
-            white-space: nowrap;
-        }
+        .header-logo { width: calc(var(--top-header-height) * 0.55); height: calc(var(--top-header-height) * 0.55); max-width: 45px; max-height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid rgba(255,255,255,0.3); background: #000; }
+        .store-name { font-size: calc(var(--top-header-height) * 0.25 + 4px); font-weight: 800; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap; }
         .header-left { display: flex; align-items: center; gap: 6px; }
-        .shield-icon { 
-            width: calc(var(--top-header-height) * 0.4); 
-            height: calc(var(--top-header-height) * 0.4); 
-            max-width: 28px; max-height: 28px;
-            display: flex; align-items: center; justify-content: center; color: #ffffff; 
-        }
+        .shield-icon { width: calc(var(--top-header-height) * 0.4); height: calc(var(--top-header-height) * 0.4); max-width: 28px; max-height: 28px; display: flex; align-items: center; justify-content: center; color: #ffffff; }
         .shield-icon svg { width: 100%; height: 100%; }
-        .add-balance-btn {
-            background-color: #ffffff; color: #00897b; border-radius: 50%;
-            width: calc(var(--top-header-height) * 0.4); 
-            height: calc(var(--top-header-height) * 0.4); 
-            max-width: 26px; max-height: 26px;
-            min-width: 18px; min-height: 18px;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 900; font-size: calc(var(--top-header-height) * 0.22 + 2px); 
-            cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-            border: none; text-decoration: none; transition: transform 0.1s ease;
-        }
+        .add-balance-btn { background-color: #ffffff; color: #00897b; border-radius: 50%; width: calc(var(--top-header-height) * 0.4); height: calc(var(--top-header-height) * 0.4); max-width: 26px; max-height: 26px; min-width: 18px; min-height: 18px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: calc(var(--top-header-height) * 0.22 + 2px); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2); border: none; text-decoration: none; transition: transform 0.1s ease; }
         .add-balance-btn:active { transform: scale(0.9); }
-        .balance-text { 
-            font-size: calc(var(--top-header-height) * 0.2 + 2px); 
-            font-weight: 700; color: #ffffff; direction: ltr; white-space: nowrap;
-        }
-        .menu-hamburger {
-            background: transparent; border: none; cursor: pointer;
-            display: flex; flex-direction: column; gap: 4px; 
-            width: calc(var(--top-header-height) * 0.32);
-            max-width: 24px; min-width: 18px;
-            padding: 0;
-        }
+        .balance-text { font-size: calc(var(--top-header-height) * 0.2 + 2px); font-weight: 700; color: #ffffff; direction: ltr; white-space: nowrap; }
+        .menu-hamburger { background: transparent; border: none; cursor: pointer; display: flex; flex-direction: column; gap: 4px; width: calc(var(--top-header-height) * 0.32); max-width: 24px; min-width: 18px; padding: 0; }
         .menu-hamburger span { width: 100%; height: 3px; background-color: #ffffff; border-radius: 2px; }
-        .notif-badge {
-            position: absolute; top: -4px; right: -4px; background: #ef4444; color: #fff;
-            min-width: 16px; height: 16px; border-radius: 8px; font-size: 0.65rem; font-weight: 800;
-            display: flex; align-items: center; justify-content: center; padding: 0 4px;
-        }
+        .notif-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: #fff; min-width: 16px; height: 16px; border-radius: 8px; font-size: 0.65rem; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
         .notif-btn-wrapper { position: relative; display: inline-block; }
 
-        .sidebar-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px);
-            z-index: 999; opacity: 0; visibility: hidden; transition: opacity 0.3s ease;
-        }
+        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); z-index: 999; opacity: 0; visibility: hidden; transition: opacity 0.3s ease; }
         .sidebar-overlay.active { opacity: 1; visibility: visible; }
 
         .sidebar {
@@ -1643,75 +1407,34 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .sidebar-header { display: flex; align-items: center; justify-content: flex-end; padding: 0 5px; }
         .close-btn { background: transparent; border: none; color: var(--subtext-color); font-size: 1.5rem; cursor: pointer; }
 
-        .guest-auth-card {
-            background-color: #245831; border-radius: 26px; padding: 24px 18px;
-            display: flex; flex-direction: column; align-items: center; text-align: center;
-            gap: 12px; width: 100%; margin-bottom: 5px; box-shadow: 0 6px 18px rgba(0,0,0,0.3);
-        }
+        .guest-auth-card { background-color: #245831; border-radius: 26px; padding: 24px 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; width: 100%; margin-bottom: 5px; box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
         .guest-auth-title { font-size: 1.45rem; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
         .guest-auth-desc { font-size: 0.85rem; color: #d1fae5; line-height: 1.5; font-weight: 500; margin-bottom: 4px; }
-        .guest-btn-blue {
-            width: 100%; background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
-            color: #ffffff; border: none; border-radius: 22px; padding: 11px 16px;
-            font-size: 0.92rem; font-weight: 800; cursor: pointer;
-            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4); transition: transform 0.1s ease, filter 0.2s ease;
-        }
+        .guest-btn-blue { width: 100%; background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%); color: #ffffff; border: none; border-radius: 22px; padding: 11px 16px; font-size: 0.92rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4); transition: transform 0.1s ease, filter 0.2s ease; }
         .guest-btn-blue:active { transform: scale(0.97); }
-        .guest-btn-google {
-            width: 100%; background-color: #ffffff; color: #1f2937; border: none;
-            border-radius: 22px; padding: 10px 16px; font-size: 0.9rem; font-weight: 800;
-            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: transform 0.1s ease;
-        }
+        .guest-btn-google { width: 100%; background-color: #ffffff; color: #1f2937; border: none; border-radius: 22px; padding: 10px 16px; font-size: 0.9rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: transform 0.1s ease; }
         .guest-btn-google:active { transform: scale(0.97); }
 
         .sidebar-profile-box { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; margin-bottom: 5px; }
-        .sidebar-avatar {
-            width: 75px; height: 75px; border-radius: 50%; object-fit: cover;
-            border: 2px solid var(--accent-color); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
-            background-color: var(--input-bg);
-        }
+        .sidebar-avatar { width: 75px; height: 75px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-color); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); background-color: var(--input-bg); }
         .sidebar-user-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-        .user-info-rect {
-            background-color: var(--card-bg); border: 1px solid var(--border-color);
-            border-radius: 8px; padding: 8px 4px; text-align: center;
-            display: flex; flex-direction: column; gap: 3px; overflow: hidden;
-        }
+        .user-info-rect { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 4px; text-align: center; display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
         .user-info-lbl { font-size: 0.65rem; color: var(--subtext-color); font-weight: 600; }
         .user-info-val { font-size: 0.72rem; color: var(--text-color); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .sidebar-menu-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-        .menu-nav-item {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 13px 18px; border-radius: 14px; color: var(--sidebar-item-color);
-            font-size: var(--sidebar-font-size); font-weight: 700; cursor: pointer;
-            transition: all 0.2s ease; background: transparent; border: none;
-            text-align: right; text-decoration: none;
-        }
+        .menu-nav-item { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; border-radius: 14px; color: var(--sidebar-item-color); font-size: var(--sidebar-font-size); font-weight: 700; cursor: pointer; transition: all 0.2s ease; background: transparent; border: none; text-align: right; text-decoration: none; }
         .menu-nav-item:hover { background: rgba(125, 125, 125, 0.1); }
-        .menu-nav-item.active-home { 
-            background-color: #3b3a4a !important; color: #ffffff !important;
-            border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
-        }
+        .menu-nav-item.active-home { background-color: #3b3a4a !important; color: #ffffff !important; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         body.light-mode .menu-nav-item.active-home { background-color: #0284c7 !important; color: #ffffff !important; }
         .nav-icon { font-size: 1.15rem; display: flex; align-items: center; justify-content: center; width: 28px; }
 
-        .dark-mode-item {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 14px; background: transparent; margin-top: 5px;
-            border-top: 1px solid var(--border-color); padding-top: 16px;
-        }
+        .dark-mode-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: transparent; margin-top: 5px; border-top: 1px solid var(--border-color); padding-top: 16px; }
         .dark-mode-title { font-size: 0.95rem; font-weight: 700; color: var(--text-color); }
         .toggle-switch { position: relative; display: inline-block; width: 54px; height: 30px; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #383842; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 34px;
-        }
-        .toggle-slider:before {
-            position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px;
-            background-color: #4ade80; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 50%;
-        }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #383842; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 34px; }
+        .toggle-slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: #4ade80; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 50%; }
         input:checked + .toggle-slider { background-color: #2e593e; }
         input:checked + .toggle-slider:before { transform: translateX(24px); background-color: #4ade80; }
 
@@ -1726,116 +1449,47 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .icon-notif { color: #facc15; }
         .icon-currency { color: #f59e0b; }
 
-        .logout-btn-nav {
-            margin-top: 8px; background: rgba(220, 38, 38, 0.12);
-            color: #f87171 !important; border: 1px solid rgba(220, 38, 38, 0.3);
-        }
+        .logout-btn-nav { margin-top: 8px; background: rgba(220, 38, 38, 0.12); color: #f87171 !important; border: 1px solid rgba(220, 38, 38, 0.3); }
 
-        .bottom-nav-bar {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            width: 100%; height: var(--bottom-nav-height);
-            background: linear-gradient(135deg, var(--bottom-nav-c1) 0%, var(--bottom-nav-c2) 50%, var(--bottom-nav-c3) 100%);
-            border-radius: 0; display: flex; align-items: center; justify-content: space-around;
-            padding: 0 15px; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5); z-index: 5000;
-        }
-        .bottom-nav-btn {
-            background: transparent; border: none; color: #ffffff; display: flex;
-            align-items: center; justify-content: center; cursor: pointer;
-            width: 42px; height: 42px; border-radius: 50%; transition: all 0.2s ease;
-            position: relative;
-        }
+        .bottom-nav-bar { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: var(--bottom-nav-height); background: linear-gradient(135deg, var(--bottom-nav-c1) 0%, var(--bottom-nav-c2) 50%, var(--bottom-nav-c3) 100%); border-radius: 0; display: flex; align-items: center; justify-content: space-around; padding: 0 15px; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5); z-index: 5000; }
+        .bottom-nav-btn { background: transparent; border: none; color: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer; width: 42px; height: 42px; border-radius: 50%; transition: all 0.2s ease; position: relative; }
         .bottom-nav-btn:active { transform: scale(0.9); }
         .bottom-btn-pink { background-color: #f43f5e; width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 4px 12px rgba(244, 63, 94, 0.4); }
         .bottom-btn-gradient-search { background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%); width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4); }
 
-        .form-input {
-            width: 100%; padding: 12px; background-color: var(--input-bg);
-            border: 1px solid var(--border-color); border-radius: 10px;
-            color: var(--text-color); font-size: 0.85rem; outline: none;
-        }
+        .form-input { width: 100%; padding: 12px; background-color: var(--input-bg); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-color); font-size: 0.85rem; outline: none; }
         .form-input:focus { border-color: #3b82f6; }
 
-        .banner-container {
-            width: 92%; margin: 10px auto 0 auto; height: 120px;
-            background: var(--card-bg); border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            border: 1px solid var(--border-color); position: relative; overflow: hidden;
-        }
-        .banner-slide {
-            width: 100%; height: 100%; object-fit: cover;
-            position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.5s ease-in-out;
-        }
+        .banner-container { width: 92%; margin: 10px auto 0 auto; height: 120px; background: var(--card-bg); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color); position: relative; overflow: hidden; }
+        .banner-slide { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.5s ease-in-out; }
         .banner-slide.active { opacity: 1; }
         .banner-placeholder { font-size: 0.95rem; font-weight: 700; color: var(--text-color); }
 
-        .ticker-wrapper {
-            width: 92%; margin: 0 auto; background-color: var(--card-bg);
-            border: 1px solid var(--border-color); border-radius: 8px;
-            padding: 8px 0; overflow: hidden;
-        }
-        .ticker-text {
-            display: inline-block; white-space: nowrap; color: var(--ticker-color);
-            font-size: 0.85rem; font-weight: 700; animation: marquee 12s linear infinite;
-        }
+        .ticker-wrapper { width: 92%; margin: 0 auto; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 0; overflow: hidden; }
+        .ticker-text { display: inline-block; white-space: nowrap; color: var(--ticker-color); font-size: 0.85rem; font-weight: 700; animation: marquee 12s linear infinite; }
         @keyframes marquee { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
         .main-content-wrapper { padding: 0 15px; display: flex; flex-direction: column; gap: 15px; }
         .section-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .back-btn {
-            background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--accent-color);
-            padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;
-            cursor: pointer; display: none; white-space: nowrap;
-        }
+        .back-btn { background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--accent-color); padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: none; white-space: nowrap; }
         .search-container { width: 100%; }
-        .search-input {
-            width: 100%; padding: 9px 12px; background-color: var(--card-bg);
-            border: 1px solid var(--border-color); border-radius: 8px;
-            color: var(--text-color); font-size: 0.8rem; outline: none; transition: border-color 0.2s;
-        }
+        .search-input { width: 100%; padding: 9px 12px; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-size: 0.8rem; outline: none; transition: border-color 0.2s; }
         .search-input:focus { border-color: var(--accent-color); }
 
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 12px; padding: 10px 5px; }
-        .item-card {
-            background: transparent; border: none; display: flex; flex-direction: column;
-            align-items: center; justify-content: flex-start; cursor: pointer;
-            overflow: visible; position: relative; transform: none; padding: 0; width: 100%;
-        }
-        .item-img {
-            width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 14px;
-            position: static; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.08); background-color: var(--card-bg);
-            transition: transform 0.15s ease;
-        }
+        .item-card { background: transparent; border: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; cursor: pointer; overflow: visible; position: relative; transform: none; padding: 0; width: 100%; }
+        .item-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 14px; position: static; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); background-color: var(--card-bg); transition: transform 0.15s ease; }
         .item-card:active .item-img { transform: scale(0.95); }
-        .item-label {
-            width: 100%; background: transparent; border: none; padding: 6px 2px 0 2px;
-            text-align: center; font-size: 0.82rem; font-weight: 700;
-            color: var(--item-label-color); white-space: nowrap; overflow: hidden;
-            text-overflow: ellipsis; z-index: 1;
-        }
-        .item-price-tag {
-            font-size: 0.82rem; font-weight: 800; color: #4ade80; margin-top: 1px;
-            direction: ltr; text-align: center;
-        }
+        .item-label { width: 100%; background: transparent; border: none; padding: 6px 2px 0 2px; text-align: center; font-size: 0.82rem; font-weight: 700; color: var(--item-label-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 1; }
+        .item-price-tag { font-size: 0.82rem; font-weight: 800; color: #4ade80; margin-top: 1px; direction: ltr; text-align: center; }
 
-        .currency-selector-box {
-            background: linear-gradient(135deg, #78350f 0%, #92400e 50%, #b45309 100%);
-            border: 1px solid #f59e0b; border-radius: 12px;
-            padding: 10px 14px; display: flex; align-items: center;
-            justify-content: space-between; cursor: pointer; width: 100%;
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
-            transition: transform 0.15s ease;
-        }
+        .currency-selector-box { background: linear-gradient(135deg, #78350f 0%, #92400e 50%, #b45309 100%); border: 1px solid #f59e0b; border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; width: 100%; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25); transition: transform 0.15s ease; }
         .currency-selector-box:active { transform: scale(0.97); }
         .currency-selector-label { font-size: 0.82rem; font-weight: 800; color: #ffffff; }
         .currency-selector-value { font-size: 0.78rem; font-weight: 700; color: #fef3c7; direction: rtl; }
 
         #currencySelectModal .modal-box { background-color: #121023; }
-        .currency-option-item {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 14px; background-color: #1a1730; border: 1px solid #2e2850;
-            border-radius: 12px; cursor: pointer; transition: all 0.2s;
-        }
+        .currency-option-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background-color: #1a1730; border: 1px solid #2e2850; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
         .currency-option-item:hover { border-color: #f59e0b; background-color: #1f1b38; }
         .currency-option-item.selected { border-color: #f59e0b; background: linear-gradient(135deg, #78350f 0%, #92400e 100%); }
         .currency-option-item.default-option { border-color: #4ade80; }
@@ -1846,10 +1500,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         #depositPage, #myOrdersPage, #myDepositsPage, #myWalletPage, #myNotificationsPage { display: none; flex-direction: column; gap: 14px; width: 100%; padding: 0 15px; }
 
         .wallet-cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; margin-top: 5px; }
-        .wallet-stat-card {
-            border-radius: 14px; padding: 16px 12px; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
+        .wallet-stat-card { border-radius: 14px; padding: 16px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .wallet-stat-card.green { background-color: #22c55e; color: #ffffff; }
         .wallet-stat-card.red { background-color: #ef4444; color: #ffffff; }
         .wallet-stat-card.purple { background-color: #a855f7; color: #ffffff; }
@@ -1858,83 +1509,36 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .wallet-stat-label { font-size: 0.82rem; font-weight: 700; text-align: center; }
 
         .wallet-filters-row { display: flex; gap: 10px; width: 100%; margin-top: 5px; }
-        .wallet-date-box {
-            flex: 1; background: var(--card-bg); border: 1px solid var(--border-color);
-            border-radius: 25px; padding: 8px 14px; display: flex; flex-direction: column; align-items: center;
-        }
+        .wallet-date-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 25px; padding: 8px 14px; display: flex; flex-direction: column; align-items: center; }
         .wallet-date-box label { font-size: 0.65rem; color: var(--subtext-color); font-weight: 700; margin-bottom: 2px; }
-        .wallet-date-box input[type="date"] {
-            background: transparent; border: none; color: var(--text-color);
-            font-size: 0.8rem; font-weight: 700; outline: none; width: 100%; text-align: center;
-        }
+        .wallet-date-box input[type="date"] { background: transparent; border: none; color: var(--text-color); font-size: 0.8rem; font-weight: 700; outline: none; width: 100%; text-align: center; }
         .wallet-search-row { display: flex; align-items: center; gap: 10px; width: 100%; }
-        .wallet-search-box {
-            flex: 1; background: var(--card-bg); border: 1px solid var(--border-color);
-            border-radius: 25px; padding: 10px 16px; display: flex; align-items: center;
-        }
+        .wallet-search-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 25px; padding: 10px 16px; display: flex; align-items: center; }
         .wallet-search-box input { background: transparent; border: none; color: var(--text-color); font-size: 0.85rem; outline: none; width: 100%; text-align: right; }
-        .wallet-search-btn {
-            width: 45px; height: 45px; background: #2dd4bf; border-radius: 50%;
-            border: none; color: #ffffff; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; box-shadow: 0 4px 12px rgba(45,212,191,0.3); flex-shrink: 0;
-        }
-        .wallet-empty-box {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 15px; padding: 40px 0; color: var(--subtext-color); font-weight: 700; font-size: 0.9rem;
-        }
+        .wallet-search-btn { width: 45px; height: 45px; background: #2dd4bf; border-radius: 50%; border: none; color: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(45,212,191,0.3); flex-shrink: 0; }
+        .wallet-empty-box { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; padding: 40px 0; color: var(--subtext-color); font-weight: 700; font-size: 0.9rem; }
 
         .orders-header-title { font-size: 1.25rem; font-weight: 800; color: var(--text-color); text-align: left; margin-bottom: 5px; }
         .orders-date-filters { display: flex; gap: 10px; width: 100%; }
-        .orders-date-box {
-            flex: 1; background: var(--card-bg); border: 1px solid var(--border-color);
-            border-radius: 25px; padding: 8px 14px; display: flex; flex-direction: column;
-            align-items: center; position: relative;
-        }
+        .orders-date-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 25px; padding: 8px 14px; display: flex; flex-direction: column; align-items: center; position: relative; }
         .orders-date-box label { font-size: 0.65rem; color: var(--subtext-color); font-weight: 700; margin-bottom: 2px; }
-        .orders-date-box input[type="date"] {
-            background: transparent; border: none; color: var(--text-color);
-            font-size: 0.82rem; font-weight: 700; outline: none; width: 100%; text-align: center;
-        }
+        .orders-date-box input[type="date"] { background: transparent; border: none; color: var(--text-color); font-size: 0.82rem; font-weight: 700; outline: none; width: 100%; text-align: center; }
         .orders-search-row { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 5px; }
-        .orders-search-box {
-            flex: 1; background: var(--card-bg); border: 1px solid var(--border-color);
-            border-radius: 25px; padding: 10px 16px; display: flex; align-items: center;
-        }
+        .orders-search-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 25px; padding: 10px 16px; display: flex; align-items: center; }
         .orders-search-box input { background: transparent; border: none; color: var(--text-color); font-size: 0.85rem; outline: none; width: 100%; text-align: right; }
-        .orders-search-icon-btn {
-            width: 45px; height: 45px; background: #2dd4bf; border-radius: 50%;
-            border: none; color: #ffffff; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; box-shadow: 0 4px 12px rgba(45,212,191,0.3); flex-shrink: 0;
-        }
+        .orders-search-icon-btn { width: 45px; height: 45px; background: #2dd4bf; border-radius: 50%; border: none; color: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(45,212,191,0.3); flex-shrink: 0; }
         .orders-filters-group { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
         .orders-filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .filter-pill {
-            background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px;
-            padding: 6px 14px; font-size: 0.78rem; font-weight: 700; color: var(--subtext-color);
-            cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
-        }
+        .filter-pill { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 6px 14px; font-size: 0.78rem; font-weight: 700; color: var(--subtext-color); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
         .filter-pill.active { background: #0284c7; color: #ffffff; border-color: #0284c7; }
         .filter-pill .pill-count { background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 10px; font-size: 0.7rem; }
 
         .orders-bottom-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 10px; }
-        .export-excel-btn {
-            background: #0d9488; color: #ffffff; border: none; border-radius: 25px;
-            padding: 10px 22px; font-size: 0.85rem; font-weight: 800; cursor: pointer;
-            box-shadow: 0 4px 12px rgba(13,148,136,0.3);
-        }
-        .total-expense-pill {
-            background: var(--card-bg); border: 1px solid #facc15; border-radius: 25px;
-            padding: 8px 16px; font-size: 0.85rem; font-weight: 800; color: #facc15;
-            display: inline-flex; align-items: center; gap: 5px; direction: ltr;
-        }
+        .export-excel-btn { background: #0d9488; color: #ffffff; border: none; border-radius: 25px; padding: 10px 22px; font-size: 0.85rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(13,148,136,0.3); }
+        .total-expense-pill { background: var(--card-bg); border: 1px solid #facc15; border-radius: 25px; padding: 8px 16px; font-size: 0.85rem; font-weight: 800; color: #facc15; display: inline-flex; align-items: center; gap: 5px; direction: ltr; }
         .orders-list { display: flex; flex-direction: column; gap: 10px; margin-top: 5px; }
         
-        .order-card-exact {
-            background-color: var(--card-bg); border: 1px solid var(--border-color);
-            border-radius: 14px; padding: 12px 16px; display: flex;
-            justify-content: space-between; align-items: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: pointer; transition: border-color 0.2s;
-        }
+        .order-card-exact { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: pointer; transition: border-color 0.2s; }
         .order-card-exact:hover { border-color: var(--accent-color); }
         .order-card-right-exact { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 2px; }
         .order-id-exact { font-size: 0.85rem; font-weight: 800; color: var(--text-color); direction: ltr; }
@@ -1955,342 +1559,100 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .status-pending { color: #f59e0b; border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
         .status-reject { color: #f87171; border-color: #f87171; background: rgba(248, 113, 113, 0.1); }
 
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px);
-            z-index: 3000; display: flex; align-items: center; justify-content: center;
-            opacity: 0; visibility: hidden; transition: opacity 0.3s ease;
-        }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); z-index: 3000; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.3s ease; }
         .modal-overlay.active { opacity: 1; visibility: visible; }
-        .modal-box {
-            background-color: #121023; border: 1px solid rgba(217, 163, 62, 0.3);
-            border-radius: 20px; width: 92%; max-width: 360px; padding: 22px;
-            display: flex; flex-direction: column; gap: 16px; position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-        }
+        .modal-box { background-color: #121023; border: 1px solid rgba(217, 163, 62, 0.3); border-radius: 20px; width: 92%; max-width: 360px; padding: 22px; display: flex; flex-direction: column; gap: 16px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
 
         .purchase-top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .purchase-price-badge {
-            background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%);
-            color: #000000; padding: 8px 18px; border-radius: 30px;
-            font-size: 1.05rem; font-weight: 800; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.35); direction: ltr;
-        }
+        .purchase-price-badge { background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%); color: #000000; padding: 8px 18px; border-radius: 30px; font-size: 1.05rem; font-weight: 800; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.35); direction: ltr; }
         .purchase-title-box { display: flex; align-items: center; gap: 8px; color: #ffffff; font-size: 0.95rem; font-weight: 700; text-align: right; }
-        .purchase-input-custom {
-            width: 100%; padding: 14px 18px; background-color: #1a1730;
-            border: 1px solid #2e2850; border-radius: 16px; color: #ffffff;
-            font-size: 0.9rem; text-align: right; outline: none; transition: border-color 0.2s;
-        }
+        .purchase-input-custom { width: 100%; padding: 14px 18px; background-color: #1a1730; border: 1px solid #2e2850; border-radius: 16px; color: #ffffff; font-size: 0.9rem; text-align: right; outline: none; transition: border-color 0.2s; }
         .purchase-input-custom::placeholder { color: #787494; }
         .purchase-input-custom:focus { border-color: #daa520; }
         .purchase-buttons-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px; width: 100%; }
-        .buy-btn-gold {
-            background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%);
-            color: #000000; border: none; border-radius: 16px; padding: 12px;
-            font-size: 1rem; font-weight: 800; cursor: pointer; text-align: center;
-            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3); transition: transform 0.1s;
-        }
+        .buy-btn-gold { background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%); color: #000000; border: none; border-radius: 16px; padding: 12px; font-size: 1rem; font-weight: 800; cursor: pointer; text-align: center; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3); transition: transform 0.1s; }
         .buy-btn-gold:active { transform: scale(0.96); }
-        .cancel-btn-outline {
-            background: transparent; color: #f87171; border: 1px solid #f87171;
-            border-radius: 16px; padding: 12px; font-size: 1rem; font-weight: 700;
-            cursor: pointer; text-align: center; transition: all 0.2s;
-        }
+        .cancel-btn-outline { background: transparent; color: #f87171; border: 1px solid #f87171; border-radius: 16px; padding: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.2s; }
         .cancel-btn-outline:active { transform: scale(0.96); }
         .purchase-notice-box { display: flex; align-items: flex-start; gap: 10px; background-color: #16132d; border-radius: 12px; padding: 12px; position: relative; }
         .purchase-notice-line { width: 3px; background-color: #daa520; border-radius: 3px; position: absolute; right: 0; top: 10px; bottom: 10px; }
         .purchase-notice-text { font-size: 0.8rem; color: #b0aec4; line-height: 1.5; text-align: right; padding-right: 8px; }
 
         .dep-desc-box { background-color: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; font-size: 0.78rem; color: var(--subtext-color); line-height: 1.4; }
-        .dep-code-box {
-            background-color: var(--input-bg); border: 1px dashed var(--accent-color);
-            border-radius: 8px; padding: 10px; font-size: 0.85rem; font-weight: 700;
-            color: var(--text-color); text-align: center; cursor: pointer;
-            word-break: break-all; user-select: all;
-        }
+        .dep-code-box { background-color: var(--input-bg); border: 1px dashed var(--accent-color); border-radius: 8px; padding: 10px; font-size: 0.85rem; font-weight: 700; color: var(--text-color); text-align: center; cursor: pointer; word-break: break-all; user-select: all; }
         .dep-code-box:hover { background-color: rgba(56, 189, 248, 0.05); }
-        .dep-amount-calc-box {
-            background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
-            border: 1px solid #10b981; border-radius: 12px; padding: 12px;
-            display: none; flex-direction: column; align-items: center; gap: 4px;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-        }
+        .dep-amount-calc-box { background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%); border: 1px solid #10b981; border-radius: 12px; padding: 12px; display: none; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
         .dep-amount-calc-box.show { display: flex; }
         .dep-amount-calc-label { font-size: 0.75rem; color: #a7f3d0; font-weight: 600; }
         .dep-amount-calc-value { font-size: 1.4rem; font-weight: 800; color: #ffffff; direction: ltr; }
 
         .phone-input-wrapper { position: relative; width: 100%; }
         .phone-input-wrapper .form-input { padding-right: 45px; }
-        .phone-prefix {
-            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            color: var(--subtext-color); font-size: 0.8rem; font-weight: 700;
-            background: var(--input-bg); padding: 0 5px; border-left: 1px solid var(--border-color);
-        }
+        .phone-prefix { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--subtext-color); font-size: 0.8rem; font-weight: 700; background: var(--input-bg); padding: 0 5px; border-left: 1px solid var(--border-color); }
 
-        #authModal, #registerModal, #completeProfileModal {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #06050b; z-index: 10000;
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-            padding: 24px 20px; box-sizing: border-box; overflow-y: auto;
-        }
+        #authModal, #registerModal, #completeProfileModal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #06050b; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px; box-sizing: border-box; overflow-y: auto; }
         #authModal.active, #registerModal.active, #completeProfileModal.active { display: flex; }
-        .auth-fullscreen-wrapper {
-            width: 100%; max-width: 380px; display: flex; flex-direction: column;
-            align-items: center; gap: 14px; position: relative;
-        }
+        .auth-fullscreen-wrapper { width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; gap: 14px; position: relative; }
         .auth-store-logo { width: 100px; height: 100px; object-fit: contain; border-radius: 16px; margin-bottom: 20px; }
         .auth-input-box { width: 100%; position: relative; display: flex; align-items: center; }
-        .auth-input-custom {
-            width: 100%; background-color: #171520; border: 1px solid #232030;
-            border-radius: 35px; padding: 15px 20px 15px 48px; color: #ffffff;
-            font-size: 0.92rem; outline: none; text-align: right; transition: border-color 0.2s;
-        }
+        .auth-input-custom { width: 100%; background-color: #171520; border: 1px solid #232030; border-radius: 35px; padding: 15px 20px 15px 48px; color: #ffffff; font-size: 0.92rem; outline: none; text-align: right; transition: border-color 0.2s; }
         .auth-input-custom:focus { border-color: #1b7a43; }
         .auth-input-custom::placeholder { color: #9ca3af; }
-        .auth-input-icon {
-            position: absolute; left: 18px; display: flex; align-items: center;
-            justify-content: center; color: #4ade80; cursor: pointer;
-        }
+        .auth-input-icon { position: absolute; left: 18px; display: flex; align-items: center; justify-content: center; color: #4ade80; cursor: pointer; }
         .register-names-grid { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .register-names-grid .auth-input-custom { padding: 15px 18px; }
-        .auth-green-btn {
-            width: 100%; background: linear-gradient(90deg, #125e34 0%, #1e824c 50%, #125e34 100%);
-            border: 1px solid #1f8a4c; color: #ffffff; padding: 14px;
-            border-radius: 35px; font-size: 1.05rem; font-weight: 800; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(22, 101, 52, 0.4); margin-top: 4px; transition: transform 0.1s ease;
-        }
+        .auth-green-btn { width: 100%; background: linear-gradient(90deg, #125e34 0%, #1e824c 50%, #125e34 100%); border: 1px solid #1f8a4c; color: #ffffff; padding: 14px; border-radius: 35px; font-size: 1.05rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 15px rgba(22, 101, 52, 0.4); margin-top: 4px; transition: transform 0.1s ease; }
         .auth-green-btn:active { transform: scale(0.98); }
-        .auth-forgot-link {
-            width: 100%; text-align: left; color: #2e7d4e; font-size: 0.85rem;
-            font-weight: 700; text-decoration: underline; cursor: pointer; margin-top: -4px;
-        }
+        .auth-forgot-link { width: 100%; text-align: left; color: #2e7d4e; font-size: 0.85rem; font-weight: 700; text-decoration: underline; cursor: pointer; margin-top: -4px; }
         .auth-divider { width: 100%; display: flex; align-items: center; justify-content: center; position: relative; margin: 4px 0; }
         .auth-divider-line { width: 100%; height: 1px; background-color: #1e1b2e; }
-        .auth-divider-text {
-            position: absolute; background-color: #242234; color: #d1d5db;
-            font-size: 0.78rem; font-weight: 700; padding: 3px 14px; border-radius: 14px;
-        }
+        .auth-divider-text { position: absolute; background-color: #242234; color: #d1d5db; font-size: 0.78rem; font-weight: 700; padding: 3px 14px; border-radius: 14px; }
         .auth-switch-link { color: #2e7d4e; font-size: 0.95rem; font-weight: 700; cursor: pointer; margin: 2px 0; text-align: center; }
-        .google-auth-btn {
-            width: 100%; background-color: #ffffff; color: #111827; border: none;
-            border-radius: 35px; padding: 13px 20px; font-size: 0.95rem;
-            font-weight: 800; cursor: pointer; display: flex; align-items: center;
-            justify-content: center; gap: 10px;
-        }
-        .auth-rules-box {
-            width: 100%; display: flex; flex-direction: column; gap: 3px;
-            text-align: right; padding: 0 10px; color: #9ca3af;
-            font-size: 0.78rem; font-weight: 600; line-height: 1.6;
-        }
+        .google-auth-btn { width: 100%; background-color: #ffffff; color: #111827; border: none; border-radius: 35px; padding: 13px 20px; font-size: 0.95rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .auth-rules-box { width: 100%; display: flex; flex-direction: column; gap: 3px; text-align: right; padding: 0 10px; color: #9ca3af; font-size: 0.78rem; font-weight: 600; line-height: 1.6; }
         .auth-rule-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-        .auth-close-btn {
-            position: absolute; top: 20px; right: 20px; background: transparent;
-            border: none; color: #9ca3af; font-size: 1.8rem; cursor: pointer;
-        }
+        .auth-close-btn { position: absolute; top: 20px; right: 20px; background: transparent; border: none; color: #9ca3af; font-size: 1.8rem; cursor: pointer; }
 
-        .notif-card {
-            background-color: var(--card-bg); border: 1px solid var(--border-color);
-            border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column;
-            gap: 6px; position: relative; transition: border-color 0.2s;
-        }
+        .notif-card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; position: relative; transition: border-color 0.2s; }
         .notif-card.unread { border-color: #38bdf8; background: linear-gradient(135deg, rgba(56,189,248,0.08) 0%, rgba(56,189,248,0.02) 100%); }
         .notif-card.success { border-right: 3px solid #4ade80; }
         .notif-card.error { border-right: 3px solid #ef4444; }
         .notif-card .notif-title { font-size: 0.9rem; font-weight: 800; color: var(--text-color); }
         .notif-card .notif-msg { font-size: 0.8rem; color: var(--subtext-color); font-weight: 600; }
         .notif-card .notif-time { font-size: 0.7rem; color: var(--subtext-color); direction: ltr; text-align: left; }
-        .notif-card .unread-dot {
-            position: absolute; top: 14px; left: 14px; width: 8px; height: 8px;
-            border-radius: 50%; background: #38bdf8; box-shadow: 0 0 8px rgba(56,189,248,0.6);
-        }
+        .notif-card .unread-dot { position: absolute; top: 14px; left: 14px; width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 8px rgba(56,189,248,0.6); }
 
-        .counter-qty-box {
-            width: 100%; padding: 14px 18px; background-color: #1a1730;
-            border: 1px solid #daa520; border-radius: 16px; color: #ffffff;
-            font-size: 0.9rem; text-align: right; outline: none;
-            transition: border-color 0.2s;
-        }
+        .counter-qty-box { width: 100%; padding: 14px 18px; background-color: #1a1730; border: 1px solid #daa520; border-radius: 16px; color: #ffffff; font-size: 0.9rem; text-align: right; outline: none; transition: border-color 0.2s; }
         .counter-qty-box:focus { border-color: #4ade80; }
         .counter-qty-box::placeholder { color: #787494; }
-        .counter-total-box {
-            background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
-            border: 1px solid #10b981; border-radius: 12px; padding: 10px 14px;
-            display: none; flex-direction: column; align-items: center; gap: 4px;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-        }
+        .counter-total-box { background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%); border: 1px solid #10b981; border-radius: 12px; padding: 10px 14px; display: none; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
         .counter-total-box.show { display: flex; }
         .counter-total-label { font-size: 0.72rem; color: #a7f3d0; font-weight: 600; }
         .counter-total-value { font-size: 1.3rem; font-weight: 800; color: #ffffff; direction: ltr; }
 
-        #completeProfileModal {
-            background: linear-gradient(160deg, #0a0a1a 0%, #0f1b2d 100%);
-        }
-        .cpm-box {
-            background: linear-gradient(160deg, #12102a 0%, #1a1440 100%);
-            border: 2px solid #daa520;
-            border-radius: 24px;
-            width: 100%;
-            max-width: 400px;
-            padding: 28px 22px;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-            box-shadow: 0 20px 60px rgba(218, 165, 32, 0.35), 0 0 40px rgba(218, 165, 32, 0.15);
-            position: relative;
-        }
-        .cpm-title {
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: #daa520;
-            text-align: center;
-            letter-spacing: -0.3px;
-        }
-        .cpm-subtitle {
-            font-size: 0.8rem;
-            color: #b0aec4;
-            text-align: center;
-            font-weight: 600;
-            line-height: 1.5;
-            margin-top: -8px;
-        }
-        .cpm-field-label {
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: #daa520;
-            text-align: right;
-            margin-bottom: 6px;
-        }
-        .cpm-phone-wrapper {
-            position: relative;
-            width: 100%;
-        }
-        .cpm-phone-input {
-            width: 100%;
-            padding: 15px 55px 15px 18px;
-            background-color: #0a0a1a;
-            border: 1px solid #2e2850;
-            border-radius: 16px;
-            color: #ffffff;
-            font-size: 0.95rem;
-            text-align: right;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .cpm-phone-input:focus {
-            border-color: #daa520;
-            box-shadow: 0 0 12px rgba(218, 165, 32, 0.25);
-        }
-        .cpm-phone-input::placeholder {
-            color: #787494;
-        }
-        .cpm-phone-prefix {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #daa520;
-            font-size: 0.9rem;
-            font-weight: 800;
-            background: #0a0a1a;
-            padding: 0 4px;
-            border-left: 1px solid #2e2850;
-        }
-        .cpm-currency-select {
-            width: 100%;
-            padding: 15px 18px;
-            background-color: #0a0a1a;
-            border: 1px solid #2e2850;
-            border-radius: 16px;
-            color: #ffffff;
-            font-size: 0.95rem;
-            text-align: right;
-            outline: none;
-            cursor: pointer;
-            transition: border-color 0.2s;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23daa520'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: left 16px center;
-        }
-        .cpm-currency-select:focus {
-            border-color: #daa520;
-            box-shadow: 0 0 12px rgba(218, 165, 32, 0.25);
-        }
-        .cpm-currency-select option {
-            background: #12102a;
-            color: #ffffff;
-        }
-        .cpm-submit-btn {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%);
-            border: none;
-            border-radius: 16px;
-            color: #000000;
-            font-size: 1.05rem;
-            font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 6px 20px rgba(218, 165, 32, 0.45);
-            transition: transform 0.1s ease;
-            margin-top: 4px;
-        }
-        .cpm-submit-btn:active {
-            transform: scale(0.97);
-        }
-        .cpm-welcome-msg {
-            position: fixed;
-            top: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
-            color: #ffffff;
-            padding: 14px 24px;
-            border-radius: 14px;
-            font-size: 0.9rem;
-            font-weight: 800;
-            text-align: center;
-            z-index: 10002;
-            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.5);
-            display: none;
-            max-width: 90%;
-            direction: rtl;
-        }
-        .cpm-welcome-msg.show {
-            display: block;
-            animation: welcomePop 0.5s ease-out;
-        }
-        @keyframes welcomePop {
-            0% { transform: translateX(-50%) translateY(-30px) scale(0.85); opacity: 0; }
-            100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
-        }
+        #completeProfileModal { background: linear-gradient(160deg, #0a0a1a 0%, #0f1b2d 100%); }
+        .cpm-box { background: linear-gradient(160deg, #12102a 0%, #1a1440 100%); border: 2px solid #daa520; border-radius: 24px; width: 100%; max-width: 400px; padding: 28px 22px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 20px 60px rgba(218, 165, 32, 0.35), 0 0 40px rgba(218, 165, 32, 0.15); position: relative; }
+        .cpm-title { font-size: 1.25rem; font-weight: 800; color: #daa520; text-align: center; letter-spacing: -0.3px; }
+        .cpm-subtitle { font-size: 0.8rem; color: #b0aec4; text-align: center; font-weight: 600; line-height: 1.5; margin-top: -8px; }
+        .cpm-field-label { font-size: 0.8rem; font-weight: 700; color: #daa520; text-align: right; margin-bottom: 6px; }
+        .cpm-phone-wrapper { position: relative; width: 100%; }
+        .cpm-phone-input { width: 100%; padding: 15px 55px 15px 18px; background-color: #0a0a1a; border: 1px solid #2e2850; border-radius: 16px; color: #ffffff; font-size: 0.95rem; text-align: right; outline: none; transition: border-color 0.2s; }
+        .cpm-phone-input:focus { border-color: #daa520; box-shadow: 0 0 12px rgba(218, 165, 32, 0.25); }
+        .cpm-phone-input::placeholder { color: #787494; }
+        .cpm-phone-prefix { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #daa520; font-size: 0.9rem; font-weight: 800; background: #0a0a1a; padding: 0 4px; border-left: 1px solid #2e2850; }
+        .cpm-currency-select { width: 100%; padding: 15px 18px; background-color: #0a0a1a; border: 1px solid #2e2850; border-radius: 16px; color: #ffffff; font-size: 0.95rem; text-align: right; outline: none; cursor: pointer; transition: border-color 0.2s; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23daa520'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: left 16px center; }
+        .cpm-currency-select:focus { border-color: #daa520; box-shadow: 0 0 12px rgba(218, 165, 32, 0.25); }
+        .cpm-currency-select option { background: #12102a; color: #ffffff; }
+        .cpm-submit-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%); border: none; border-radius: 16px; color: #000000; font-size: 1.05rem; font-weight: 800; cursor: pointer; box-shadow: 0 6px 20px rgba(218, 165, 32, 0.45); transition: transform 0.1s ease; margin-top: 4px; }
+        .cpm-submit-btn:active { transform: scale(0.97); }
+        .cpm-welcome-msg { position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #ffffff; padding: 14px 24px; border-radius: 14px; font-size: 0.9rem; font-weight: 800; text-align: center; z-index: 10002; box-shadow: 0 8px 25px rgba(34, 197, 94, 0.5); display: none; max-width: 90%; direction: rtl; }
+        .cpm-welcome-msg.show { display: block; animation: welcomePop 0.5s ease-out; }
+        @keyframes welcomePop { 0% { transform: translateX(-50%) translateY(-30px) scale(0.85); opacity: 0; } 100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; } }
 
-        /* ====== MAINTENANCE SCREEN ====== */
-        #maintenanceScreen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: linear-gradient(160deg, #050508 0%, #0a0a18 40%, #0d1117 100%);
-            z-index: 999999;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            overflow: hidden;
-            font-family: 'Cairo', sans-serif;
-        }
-        #maintenanceScreen.active {
-            display: flex;
-        }
-        .maint-particles {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; overflow: hidden;
-        }
-        .maint-particle {
-            position: absolute;
-            width: 4px; height: 4px;
-            background: rgba(56, 189, 248, 0.3);
-            border-radius: 50%;
-            animation: maintFloat 8s infinite ease-in-out;
-        }
+        #maintenanceScreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(160deg, #050508 0%, #0a0a18 40%, #0d1117 100%); z-index: 999999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow: hidden; font-family: 'Cairo', sans-serif; }
+        #maintenanceScreen.active { display: flex; }
+        .maint-particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+        .maint-particle { position: absolute; width: 4px; height: 4px; background: rgba(56, 189, 248, 0.3); border-radius: 50%; animation: maintFloat 8s infinite ease-in-out; }
         .maint-particle:nth-child(1) { left: 10%; top: 20%; animation-delay: 0s; }
         .maint-particle:nth-child(2) { left: 25%; top: 60%; animation-delay: 1s; width: 6px; height: 6px; background: rgba(74, 222, 128, 0.25); }
         .maint-particle:nth-child(3) { left: 50%; top: 10%; animation-delay: 2s; }
@@ -2299,287 +1661,176 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .maint-particle:nth-child(6) { left: 40%; top: 80%; animation-delay: 3s; width: 7px; height: 7px; background: rgba(168, 85, 247, 0.2); }
         .maint-particle:nth-child(7) { left: 60%; top: 45%; animation-delay: 2.5s; }
         .maint-particle:nth-child(8) { left: 15%; top: 85%; animation-delay: 1.8s; background: rgba(56, 189, 248, 0.2); }
-        @keyframes maintFloat {
-            0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
-            50% { transform: translateY(-30px) scale(1.8); opacity: 0.7; }
-        }
-        .maint-gears {
-            position: relative;
-            width: 120px; height: 120px;
-            margin-bottom: 30px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .maint-gear {
-            position: absolute;
-            font-size: 3.2rem;
-            animation: maintSpin 4s linear infinite;
-        }
-        .maint-gear.big {
-            font-size: 4rem;
-            color: #38bdf8;
-            text-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
-            animation-duration: 6s;
-        }
-        .maint-gear.small {
-            font-size: 2.2rem;
-            color: #4ade80;
-            text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
-            animation-direction: reverse;
-            animation-duration: 4s;
-            margin-top: 30px; margin-right: 50px;
-        }
-        @keyframes maintSpin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .maint-logo-box {
-            position: relative;
-            margin-bottom: 25px;
-        }
-        .maint-logo-box img {
-            width: 100px; height: 100px;
-            border-radius: 24px;
-            object-fit: cover;
-            border: 2px solid rgba(56, 189, 248, 0.3);
-            box-shadow: 0 0 40px rgba(56, 189, 248, 0.2), 0 0 80px rgba(56, 189, 248, 0.1);
-            animation: maintPulse 3s ease-in-out infinite;
-        }
-        @keyframes maintPulse {
-            0%, 100% { box-shadow: 0 0 40px rgba(56, 189, 248, 0.2), 0 0 80px rgba(56, 189, 248, 0.1); transform: scale(1); }
-            50% { box-shadow: 0 0 60px rgba(56, 189, 248, 0.4), 0 0 120px rgba(56, 189, 248, 0.2); transform: scale(1.05); }
-        }
-        .maint-title {
-            font-size: 1.4rem;
-            font-weight: 800;
-            color: #ffffff;
-            text-align: center;
-            margin-bottom: 12px;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #38bdf8, #4ade80, #38bdf8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            background-size: 200% auto;
-            animation: maintGradient 3s ease infinite;
-        }
-        @keyframes maintGradient {
-            0% { background-position: 0% center; }
-            50% { background-position: 100% center; }
-            100% { background-position: 0% center; }
-        }
-        .maint-message {
-            font-size: 0.95rem;
-            color: #a1a1aa;
-            text-align: center;
-            line-height: 1.8;
-            max-width: 340px;
-            font-weight: 600;
-            margin-bottom: 25px;
-        }
-        .maint-progress-wrapper {
-            width: 280px;
-            max-width: 85%;
-            margin-bottom: 20px;
-        }
-        .maint-progress-track {
-            width: 100%;
-            height: 6px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 3px;
-            overflow: hidden;
-            position: relative;
-        }
-        .maint-progress-bar {
-            height: 100%;
-            width: 40%;
-            background: linear-gradient(90deg, #38bdf8, #4ade80, #38bdf8);
-            border-radius: 3px;
-            animation: maintProgress 2s ease-in-out infinite;
-            background-size: 200% 100%;
-        }
-        @keyframes maintProgress {
-            0% { transform: translateX(0); background-position: 0% center; }
-            100% { transform: translateX(250%); background-position: 200% center; }
-        }
-        .maint-status-dots {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin-top: 10px;
-        }
-        .maint-dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background: #38bdf8;
-            animation: maintDot 1.4s ease-in-out infinite;
-        }
+        @keyframes maintFloat { 0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; } 50% { transform: translateY(-30px) scale(1.8); opacity: 0.7; } }
+        .maint-gears { position: relative; width: 120px; height: 120px; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; }
+        .maint-gear { position: absolute; font-size: 3.2rem; animation: maintSpin 4s linear infinite; }
+        .maint-gear.big { font-size: 4rem; color: #38bdf8; text-shadow: 0 0 30px rgba(56, 189, 248, 0.6); animation-duration: 6s; }
+        .maint-gear.small { font-size: 2.2rem; color: #4ade80; text-shadow: 0 0 20px rgba(74, 222, 128, 0.5); animation-direction: reverse; animation-duration: 4s; margin-top: 30px; margin-right: 50px; }
+        @keyframes maintSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .maint-logo-box { position: relative; margin-bottom: 25px; }
+        .maint-logo-box img { width: 100px; height: 100px; border-radius: 24px; object-fit: cover; border: 2px solid rgba(56, 189, 248, 0.3); box-shadow: 0 0 40px rgba(56, 189, 248, 0.2), 0 0 80px rgba(56, 189, 248, 0.1); animation: maintPulse 3s ease-in-out infinite; }
+        @keyframes maintPulse { 0%, 100% { box-shadow: 0 0 40px rgba(56, 189, 248, 0.2), 0 0 80px rgba(56, 189, 248, 0.1); transform: scale(1); } 50% { box-shadow: 0 0 60px rgba(56, 189, 248, 0.4), 0 0 120px rgba(56, 189, 248, 0.2); transform: scale(1.05); } }
+        .maint-title { font-size: 1.4rem; font-weight: 800; color: #ffffff; text-align: center; margin-bottom: 12px; letter-spacing: -0.5px; background: linear-gradient(135deg, #38bdf8, #4ade80, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; background-size: 200% auto; animation: maintGradient 3s ease infinite; }
+        @keyframes maintGradient { 0% { background-position: 0% center; } 50% { background-position: 100% center; } 100% { background-position: 0% center; } }
+        .maint-message { font-size: 0.95rem; color: #a1a1aa; text-align: center; line-height: 1.8; max-width: 340px; font-weight: 600; margin-bottom: 25px; }
+        .maint-progress-wrapper { width: 280px; max-width: 85%; margin-bottom: 20px; }
+        .maint-progress-track { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; position: relative; }
+        .maint-progress-bar { height: 100%; width: 40%; background: linear-gradient(90deg, #38bdf8, #4ade80, #38bdf8); border-radius: 3px; animation: maintProgress 2s ease-in-out infinite; background-size: 200% 100%; }
+        @keyframes maintProgress { 0% { transform: translateX(0); background-position: 0% center; } 100% { transform: translateX(250%); background-position: 200% center; } }
+        .maint-status-dots { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+        .maint-dot { width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; animation: maintDot 1.4s ease-in-out infinite; }
         .maint-dot:nth-child(2) { animation-delay: 0.2s; background: #4ade80; }
         .maint-dot:nth-child(3) { animation-delay: 0.4s; background: #f59e0b; }
-        @keyframes maintDot {
-            0%, 100% { opacity: 0.3; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.3); }
-        }
-        .maint-footer {
-            position: absolute;
-            bottom: 30px;
-            font-size: 0.75rem;
-            color: #52525b;
-            text-align: center;
-            font-weight: 600;
-            direction: ltr;
-            letter-spacing: 1px;
-        }
-        .maint-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(245, 158, 11, 0.12);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            color: #fbbf24;
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            margin-bottom: 18px;
-            animation: maintBadgePulse 2s ease-in-out infinite;
-        }
-        @keyframes maintBadgePulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); }
-            50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
-        }
+        @keyframes maintDot { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.3); } }
+        .maint-footer { position: absolute; bottom: 30px; font-size: 0.75rem; color: #52525b; text-align: center; font-weight: 600; direction: ltr; letter-spacing: 1px; }
+        .maint-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; padding: 6px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; margin-bottom: 18px; animation: maintBadgePulse 2s ease-in-out infinite; }
+        @keyframes maintBadgePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); } 50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); } }
 
-        /* ====== SUBCATEGORY GROUP STYLES ====== */
-        .group-item-card {
-            background: transparent;
+        .group-item-card { background: transparent; border: none; display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 0; width: 100%; position: relative; }
+        .group-item-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 14px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); background-color: var(--card-bg); transition: transform 0.15s ease; }
+        .group-item-card:active .group-item-img { transform: scale(0.95); }
+        .group-item-label { width: 100%; padding: 6px 2px 0 2px; text-align: center; font-size: 0.82rem; font-weight: 700; color: var(--item-label-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        #pwaInstallBanner { display: none; position: fixed; bottom: calc(var(--bottom-nav-height) + 10px); left: 50%; transform: translateX(-50%); width: 92%; max-width: 400px; background: linear-gradient(135deg, #00897b 0%, #26a69a 100%); border-radius: 16px; padding: 14px 18px; box-shadow: 0 8px 25px rgba(0, 137, 123, 0.4); z-index: 9000; align-items: center; gap: 12px; }
+        #pwaInstallBanner.active { display: flex; }
+        #pwaInstallIcon { width: 48px; height: 48px; border-radius: 12px; border: 2px solid #fff; }
+        .pwa-banner-text { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+        .pwa-banner-title { font-size: 0.9rem; font-weight: 800; color: #fff; }
+        .pwa-banner-desc { font-size: 0.72rem; color: #d1fae5; }
+        .pwa-install-btn { background: #fff; color: #00897b; border: none; border-radius: 10px; padding: 8px 14px; font-size: 0.8rem; font-weight: 800; cursor: pointer; }
+        .pwa-dismiss-btn { background: transparent; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; padding: 0 4px; }
+
+        #pwaSplashScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #050508; z-index: 999999; flex-direction: column; align-items: center; justify-content: center; gap: 24px; }
+        #pwaSplashScreen.active { display: flex; }
+        #pwaSplashImg { width: 150px; height: 150px; border-radius: 30px; object-fit: cover; box-shadow: 0 0 60px rgba(0, 137, 123, 0.5); animation: pwaSplashPulse 2s ease-in-out infinite; }
+        @keyframes pwaSplashPulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(0, 137, 123, 0.5); } 50% { transform: scale(1.05); box-shadow: 0 0 80px rgba(0, 137, 123, 0.8); } }
+        .pwa-splash-title { font-size: 1.4rem; font-weight: 800; color: #fff; }
+
+        #autoDepositMethodPage { display: none; flex-direction: column; gap: 14px; width: 100%; padding: 0 15px; }
+
+        .auto-deposit-verify-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
             border: none;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            cursor: pointer;
-            padding: 0;
-            width: 100%;
-            position: relative;
-        }
-        .group-item-img {
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            object-fit: cover;
-            border-radius: 14px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background-color: var(--card-bg);
-            transition: transform 0.15s ease;
-        }
-        .group-item-card:active .group-item-img {
-            transform: scale(0.95);
-        }
-        .group-item-label {
-            width: 100%;
-            padding: 6px 2px 0 2px;
-            text-align: center;
-            font-size: 0.82rem;
-            font-weight: 700;
-            color: var(--item-label-color);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* ====== PWA Install Banner ====== */
-        #pwaInstallBanner {
-            display: none;
-            position: fixed;
-            bottom: calc(var(--bottom-nav-height) + 10px);
-            left: 50%;
-            transform: translateX(-50%);
-            width: 92%;
-            max-width: 400px;
-            background: linear-gradient(135deg, #00897b 0%, #26a69a 100%);
             border-radius: 16px;
-            padding: 14px 18px;
-            box-shadow: 0 8px 25px rgba(0, 137, 123, 0.4);
-            z-index: 9000;
-            align-items: center;
-            gap: 12px;
-        }
-        #pwaInstallBanner.active {
-            display: flex;
-        }
-        #pwaInstallIcon {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            border: 2px solid #fff;
-        }
-        .pwa-banner-text {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-        .pwa-banner-title {
-            font-size: 0.9rem;
-            font-weight: 800;
-            color: #fff;
-        }
-        .pwa-banner-desc {
-            font-size: 0.72rem;
-            color: #d1fae5;
-        }
-        .pwa-install-btn {
-            background: #fff;
-            color: #00897b;
-            border: none;
-            border-radius: 10px;
-            padding: 8px 14px;
-            font-size: 0.8rem;
+            color: #ffffff;
+            font-size: 1.05rem;
             font-weight: 800;
             cursor: pointer;
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.45);
+            transition: transform 0.1s ease;
+            margin-top: 5px;
         }
-        .pwa-dismiss-btn {
-            background: transparent;
-            border: none;
-            color: #fff;
-            font-size: 1.3rem;
-            cursor: pointer;
-            padding: 0 4px;
+        .auto-deposit-verify-btn:active { transform: scale(0.97); }
+        .auto-deposit-verify-btn:disabled {
+            background: #3f3f46;
+            color: #a1a1aa;
+            box-shadow: none;
+            cursor: not-allowed;
         }
 
-        /* ====== PWA Splash Screen ====== */
-        #pwaSplashScreen {
+        #autoDepositSuccessScreen {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: #050508;
-            z-index: 999999;
+            background: linear-gradient(160deg, #050508 0%, #0a0a18 40%, #0d1117 100%);
+            z-index: 99999;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 24px;
+            padding: 24px;
+            gap: 20px;
         }
-        #pwaSplashScreen.active {
+        #autoDepositSuccessScreen.active {
             display: flex;
         }
-        #pwaSplashImg {
-            width: 150px;
-            height: 150px;
-            border-radius: 30px;
-            object-fit: cover;
-            box-shadow: 0 0 60px rgba(0, 137, 123, 0.5);
-            animation: pwaSplashPulse 2s ease-in-out infinite;
+        .auto-success-check {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px rgba(34, 197, 94, 0.5), 0 0 80px rgba(34, 197, 94, 0.2);
+            animation: successPop 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
         }
-        @keyframes pwaSplashPulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(0, 137, 123, 0.5); }
-            50% { transform: scale(1.05); box-shadow: 0 0 80px rgba(0, 137, 123, 0.8); }
+        @keyframes successPop {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            60% { transform: scale(1.15) rotate(10deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
         }
-        .pwa-splash-title {
-            font-size: 1.4rem;
+        .auto-success-check svg {
+            width: 60px;
+            height: 60px;
+            stroke: #ffffff;
+            stroke-width: 4;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: drawCheck 0.5s ease-out 0.4s forwards;
+        }
+        @keyframes drawCheck {
+            0% { stroke-dashoffset: 100; }
+            100% { stroke-dashoffset: 0; }
+        }
+        .auto-success-title {
+            font-size: 1.3rem;
             font-weight: 800;
-            color: #fff;
+            color: #ffffff;
+            text-align: center;
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 0.5s ease-out 0.6s forwards;
+            opacity: 0;
         }
+        @keyframes fadeInUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .auto-success-message {
+            font-size: 1rem;
+            color: #d1fae5;
+            text-align: center;
+            font-weight: 700;
+            line-height: 1.7;
+            max-width: 320px;
+            animation: fadeInUp 0.5s ease-out 0.8s forwards;
+            opacity: 0;
+        }
+        .auto-success-balance {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #4ade80;
+            direction: ltr;
+            text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+            animation: fadeInUp 0.5s ease-out 1s forwards;
+            opacity: 0;
+        }
+        .auto-success-back-btn {
+            padding: 14px 40px;
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+            border: none;
+            border-radius: 16px;
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+            margin-top: 10px;
+            animation: fadeInUp 0.5s ease-out 1.2s forwards;
+            opacity: 0;
+            transition: transform 0.1s ease;
+        }
+        .auto-success-back-btn:active { transform: scale(0.97); }
     </style>
 </head>
 <body>
@@ -3193,6 +2444,38 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         </div>
     </div>
 
+    <!-- Auto Deposit Method Page -->
+    <div id="autoDepositMethodPage">
+        <div class="section-header">
+            <span style="font-size:0.95rem; font-weight:800; color:var(--accent-color);" id="autoDepTitle">طريقة الإيداع التلقائي</span>
+            <button class="back-btn" style="display:block;" onclick="closeAutoDepositMethodPage()">رجوع</button>
+        </div>
+        <div class="dep-desc-box" id="autoDepDesc" style="font-size:0.85rem;">وصف الطريقة</div>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:5px;">
+            <input type="number" id="autoDepAmountInput" class="purchase-input-custom" placeholder="ادخل المبلغ" step="0.01">
+            <div style="font-size:0.7rem; color:var(--subtext-color); text-align:right; margin-top:-5px;">ادخل المبلغ بشكل صحيح ليتم تأكيد العملية فوراً</div>
+            <input type="text" id="autoDepTxIdInput" class="purchase-input-custom" placeholder="ادخل رقم العملية">
+            <div style="font-size:0.7rem; color:var(--subtext-color); text-align:right; margin-top:-5px;">ادخل رقم العملية من سجلات التحويلات</div>
+        </div>
+        <button class="auto-deposit-verify-btn" id="autoDepVerifyBtn" onclick="verifyAutoDeposit()">التحقق من العملية</button>
+    </div>
+
+    <!-- Auto Deposit Success Screen -->
+    <div id="autoDepositSuccessScreen">
+        <div class="auto-success-check">
+            <svg viewBox="0 0 52 52">
+                <path d="M14 27l8 8 16-16"/>
+            </svg>
+        </div>
+        <div class="auto-success-title">تمت العملية بنجاح!</div>
+        <div class="auto-success-message" id="autoSuccessMsg">
+            تمت عملية تطابق المبلغ بنجاح<br>
+            تمت عملية ايداع رصيد التلقائي لحسابك
+        </div>
+        <div class="auto-success-balance" id="autoSuccessBalance">0.000 $</div>
+        <button class="auto-success-back-btn" onclick="closeAutoDepositSuccess()">رجوع للصفحة الرئيسية</button>
+    </div>
+
     <!-- PWA Install Banner -->
     <div id="pwaInstallBanner">
         <img id="pwaInstallIcon" src="" alt="App Icon" />
@@ -3210,75 +2493,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         <div class="pwa-splash-title">SYRIA CARD ONE</div>
         <div class="splash-spinner"></div>
     </div>
-
-    <!-- ==================== AUTO DEPOSIT VERIFICATION SCREEN ==================== -->
-    <div id="autoDepositVerifyPage" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--bg-color); z-index:4000; overflow-y:auto; flex-direction:column; padding:20px; padding-bottom:calc(var(--bottom-nav-height) + 20px);">
-        <div style="padding-top:var(--top-header-height);"></div>
-
-        <div style="max-width:420px; margin:0 auto; width:100%; display:flex; flex-direction:column; gap:18px;">
-
-            <div style="text-align:center; padding:10px 0;">
-                <div style="font-size:1.2rem; font-weight:800; color:var(--accent-color);" id="autoDepositTitle">-</div>
-                <div style="font-size:0.82rem; color:var(--subtext-color); margin-top:6px;" id="autoDepositDesc">-</div>
-            </div>
-
-            <div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:16px;">
-
-                <div>
-                    <label style="font-size:0.85rem; font-weight:700; color:var(--text-color); margin-bottom:6px; display:block;">💵 المبلغ</label>
-                    <input type="number" id="autoDepositAmountInput" class="purchase-input-custom" placeholder="أدخل المبلغ المحول..." step="0.01" min="0.01" style="width:100%; padding:14px 18px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:12px; color:var(--text-color); font-size:0.95rem; outline:none;">
-                    <div style="font-size:0.72rem; color:var(--subtext-color); margin-top:6px; font-weight:600;">ادخل المبلغ بشكل صحيح ليتم تأكيد العملية فوراً</div>
-                </div>
-
-                <div>
-                    <label style="font-size:0.85rem; font-weight:700; color:var(--text-color); margin-bottom:6px; display:block;">🔢 رقم العملية</label>
-                    <input type="text" id="autoDepositTxIdInput" class="purchase-input-custom" placeholder="أدخل رقم العملية..." style="width:100%; padding:14px 18px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:12px; color:var(--text-color); font-size:0.95rem; outline:none;">
-                    <div style="font-size:0.72rem; color:var(--subtext-color); margin-top:6px; font-weight:600;">ادخل رقم العملية من سجلات التحويلات</div>
-                </div>
-
-                <button id="autoDepositVerifyBtn" onclick="submitAutoDepositVerification()" style="width:100%; padding:15px; background:linear-gradient(135deg, #16a34a 0%, #22c55e 100%); border:none; border-radius:14px; color:#fff; font-size:1rem; font-weight:800; cursor:pointer; box-shadow:0 6px 20px rgba(34,197,94,0.4);">
-                    🔍 التحقق من العملية
-                </button>
-
-            </div>
-        </div>
-    </div>
-
-    <!-- ==================== SUCCESS ANIMATION SCREEN ==================== -->
-    <div id="autoDepositSuccessPage" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--bg-color); z-index:4001; overflow-y:auto; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
-        <div style="max-width:400px; width:100%; display:flex; flex-direction:column; align-items:center; gap:22px; text-align:center;">
-
-            <div id="successCheckCircle" style="width:110px; height:110px; border-radius:50%; background:linear-gradient(135deg, #16a34a, #22c55e); display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 0 rgba(34,197,94,0.7); animation:successPulse 1.5s ease-out;">
-                <svg id="successCheckSvg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:55px; height:55px;">
-                    <polyline id="successCheckPath" points="4 12 10 18 20 6" style="stroke-dasharray:100; stroke-dashoffset:100; animation:drawCheck 0.8s ease-out 0.3s forwards;"/>
-                </svg>
-            </div>
-
-            <div style="font-size:1.15rem; font-weight:800; color:#4ade80;" id="successTitle">تمت العملية بنجاح</div>
-
-            <div style="font-size:0.92rem; font-weight:600; color:var(--text-color); line-height:2;" id="successMessage">
-                تمت عملية تطابق المبلغ بنجاح<br>
-                تمت عملية إيداع رصيد التلقائي لحسابك<br>
-                رصيد حسابك الجديد: <span id="successNewBalance" style="color:#4ade80; font-weight:800; font-size:1.1rem;">0 $</span>
-            </div>
-
-            <button onclick="goBackToHomeFromAutoDeposit()" style="width:100%; max-width:300px; padding:15px; background:linear-gradient(135deg, #1d4ed8, #3b82f6); border:none; border-radius:14px; color:#fff; font-size:1rem; font-weight:800; cursor:pointer; box-shadow:0 6px 20px rgba(59,130,246,0.4);">
-                🏠 رجوع للصفحة الرئيسية
-            </button>
-
-        </div>
-    </div>
-
-    <style>
-    @keyframes successPulse {
-        0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); }
-        70% { box-shadow: 0 0 0 25px rgba(34,197,94,0); }
-        100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
-    }
-    @keyframes drawCheck {
-        to { stroke-dashoffset: 0; }
-    }
-    </style>
 
     <div class="bottom-nav-bar">
         <button class="bottom-nav-btn bottom-btn-gradient-search" onclick="focusSearchInput()" title="بحث">
@@ -3305,6 +2519,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         let selectedProduct = '';
         let activeSubCategory = null;
         let activeDepositMethod = null;
+        let activeAutoDepositMethod = null;
         let currentStatusFilter = 'all';
         let currentTypeFilter = 'all';
         let currentNotifFilter = 'all';
@@ -3317,6 +2532,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             products: [],
             subcategories: [],
             depositMethods: [],
+            autoDepositMethods: [],
             userOrders: [],
             userDeposits: [],
             userNotifications: [],
@@ -3336,7 +2552,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');
 
-        // ====== MAINTENANCE CHECK ======
         async function checkMaintenanceMode() {
             try {
                 const res = await fetch('/api/maintenance_status');
@@ -3367,18 +2582,15 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         checkMaintenanceMode();
         setInterval(checkMaintenanceMode, 15000);
 
-        // ====== END MAINTENANCE CHECK ======
-
         async function applyAppearanceSettings() {
             try {
                 const res = await fetch('/api/get_appearance_settings');
                 const a = await res.json();
                 const root = document.documentElement;
                 
-                // الخط
                 if (a.font_family) {
-                    const fontLink = document.getElementById('dynamicFontLink');
                     const familyString = a.font_family.replace(/ /g, '+');
+                    const fontLink = document.getElementById('dynamicFontLink');
                     if (fontLink) {
                         fontLink.href = `https://fonts.googleapis.com/css2?family=${familyString}:wght@400;500;600;700;800;900&display=swap`;
                     }
@@ -3389,7 +2601,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                     }
                 }
                 
-                // ألوان الهيدر
                 if (a.top_header_color1) root.style.setProperty('--top-header-c1', a.top_header_color1);
                 if (a.top_header_color2) root.style.setProperty('--top-header-c2', a.top_header_color2);
                 if (a.top_header_color3) root.style.setProperty('--top-header-c3', a.top_header_color3);
@@ -3397,7 +2608,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 if (a.bottom_nav_color2) root.style.setProperty('--bottom-nav-c2', a.bottom_nav_color2);
                 if (a.bottom_nav_color3) root.style.setProperty('--bottom-nav-c3', a.bottom_nav_color3);
                 
-                // الأحجام
                 if (a.general_font_size) root.style.setProperty('--general-font-size', a.general_font_size + 'px');
                 if (a.sidebar_font_size) root.style.setProperty('--sidebar-font-size', a.sidebar_font_size + 'px');
                 if (a.top_header_height) root.style.setProperty('--top-header-height', a.top_header_height + 'px');
@@ -3406,7 +2616,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 if (a.deposit_card_size) root.style.setProperty('--deposit-card-scale', (a.deposit_card_size / 100).toFixed(2));
                 if (a.category_card_size) root.style.setProperty('--category-card-scale', (a.category_card_size / 100).toFixed(2));
 
-                // ===== ألوان الوضع الداكن =====
                 if (a.dark_bg_color) root.style.setProperty('--dark-bg-color', a.dark_bg_color);
                 if (a.dark_card_bg) root.style.setProperty('--dark-card-bg', a.dark_card_bg);
                 if (a.dark_border_color) root.style.setProperty('--dark-border-color', a.dark_border_color);
@@ -3415,7 +2624,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 if (a.dark_sidebar_bg) root.style.setProperty('--dark-sidebar-bg', a.dark_sidebar_bg);
                 if (a.dark_input_bg) root.style.setProperty('--dark-input-bg', a.dark_input_bg);
 
-                // ===== ألوان الوضع الفاتح =====
                 if (a.light_bg_color) root.style.setProperty('--light-bg-color', a.light_bg_color);
                 if (a.light_card_bg) root.style.setProperty('--light-card-bg', a.light_card_bg);
                 if (a.light_border_color) root.style.setProperty('--light-border-color', a.light_border_color);
@@ -3425,10 +2633,8 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 if (a.light_input_bg) root.style.setProperty('--light-input-bg', a.light_input_bg);
                 if (a.light_accent_color) root.style.setProperty('--light-accent-color', a.light_accent_color);
 
-                // تطبيق الوضع الحالي
                 applyCurrentTheme();
 
-                // ===== PWA =====
                 if (a.pwa_name) {
                     const appNameMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
                     if (appNameMeta) appNameMeta.content = a.pwa_name;
@@ -3440,7 +2646,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             } catch (e) { console.error('فشل تحميل إعدادات المظهر', e); }
         }
 
-        // تطبيق الثيم الحالي (داكن أو فاتح)
         function applyCurrentTheme() {
             const isLight = document.body.classList.contains('light-mode');
             const root = document.documentElement;
@@ -4151,11 +3356,12 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
 
         async function initData() {
             try {
-                const [cRes, pRes, sRes, dRes, cbRes, sgRes] = await Promise.all([
+                const [cRes, pRes, sRes, dRes, adRes, cbRes, sgRes] = await Promise.all([
                     fetch('/api/categories'),
                     fetch('/api/products'),
                     fetch('/api/subcategories'),
                     fetch('/api/get_deposit_methods'),
+                    fetch('/api/get_auto_deposit_methods'),
                     fetch('/api/category_banners'),
                     fetch('/api/get_subcategory_groups')
                 ]);
@@ -4163,6 +3369,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 dataStore.products = await pRes.json();
                 dataStore.subcategories = await sRes.json();
                 dataStore.depositMethods = await dRes.json();
+                dataStore.autoDepositMethods = await adRes.json();
                 dataStore.categoryBanners = await cbRes.json();
                 subcategoryGroups = await sgRes.json();
                 await loadCurrencies();
@@ -4201,6 +3408,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             closeMyDepositsPage();
             closeMyWalletPage();
             closeNotificationsPage();
+            closeAutoDepositMethodPage();
             currentGroupId = null;
             renderCategories();
         }
@@ -4408,6 +3616,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myOrdersPage').style.display = 'none';
             document.getElementById('myDepositsPage').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'none';
+            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'flex';
@@ -4768,23 +3977,17 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myDepositsPage').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'none';
+            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('depositPage').style.display = 'flex';
 
-            const [manualRes, autoRes] = await Promise.all([
+            const [resManual, resAuto] = await Promise.all([
                 fetch('/api/get_deposit_methods'),
-                fetch('/api/get_auto_deposit_public')
+                fetch('/api/get_auto_deposit_methods')
             ]);
-            dataStore.depositMethods = await manualRes.json();
-            const autoMethods = await autoRes.json();
-
-            // دمج الطرق التلقائية مع اليدوية
-            dataStore.depositMethods = [
-                ...autoMethods.map(m => ({...m, is_auto: true})),
-                ...dataStore.depositMethods
-            ];
-
+            dataStore.depositMethods = await resManual.json();
+            dataStore.autoDepositMethods = await resAuto.json();
             renderDepositMethods();
         }
 
@@ -4802,7 +4005,12 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             const grid = document.getElementById('depositMethodsGrid');
             grid.innerHTML = '';
 
-            const filtered = dataStore.depositMethods.filter(m => 
+            const allMethods = [
+                ...dataStore.autoDepositMethods.filter(m => m.enabled).map(m => ({ ...m, is_auto: true })),
+                ...dataStore.depositMethods.map(m => ({ ...m, is_auto: false }))
+            ];
+
+            const filtered = allMethods.filter(m => 
                 m.name.toLowerCase().includes(searchQ) || 
                 (m.description && m.description.toLowerCase().includes(searchQ))
             );
@@ -4816,22 +4024,24 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.style.transform = `scale(var(--deposit-card-scale))`;
-                card.onclick = () => openDepositDetailModal(m);
+                card.onclick = () => {
+                    if (m.is_auto) {
+                        openAutoDepositMethodPage(m);
+                    } else {
+                        openDepositDetailModal(m);
+                    }
+                };
 
                 let imgHTML = m.image ? `<img src="${m.image}" class="item-img" />` : `<div class="item-img" style="display:flex;align-items:center;justify-content:center;color:#666;">💳</div>`;
                 card.innerHTML = `${imgHTML}<div class="item-label" style="color:var(--deposit-label-color);">${m.name}</div>`;
+                if (m.is_auto) {
+                    card.innerHTML += `<div style="font-size:0.6rem; color:#4ade80; font-weight:800; margin-top:2px;">✓ تلقائي</div>`;
+                }
                 grid.appendChild(card);
             });
         }
 
         function openDepositDetailModal(method) {
-            if (method.is_auto) {
-                // فتح واجهة التحقق التلقائي
-                openAutoDepositVerifyPage(method);
-                return;
-            }
-
-            // ... باقي الكود القديم للطرق اليدوية
             activeDepositMethod = method;
             document.getElementById('depModalTitle').innerText = method.name;
             document.getElementById('depModalDesc').innerText = method.description || 'لا يوجد وصف متاح لهذه الطريقة.';
@@ -4929,6 +4139,96 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             }
         }
 
+        function openAutoDepositMethodPage(method) {
+            if (document.getElementById('sidebar').classList.contains('active')) { toggleSidebar(); }
+            activeAutoDepositMethod = method;
+            
+            document.getElementById('shopMainSection').style.display = 'none';
+            document.getElementById('depositPage').style.display = 'none';
+            document.getElementById('myOrdersPage').style.display = 'none';
+            document.getElementById('myDepositsPage').style.display = 'none';
+            document.getElementById('myWalletPage').style.display = 'none';
+            document.getElementById('myNotificationsPage').style.display = 'none';
+            document.getElementById('bannerContainer').style.display = 'none';
+            document.getElementById('tickerWrapper').style.display = 'none';
+            
+            document.getElementById('autoDepTitle').innerText = method.name;
+            document.getElementById('autoDepDesc').innerText = method.description || 'وصف الطريقة';
+            document.getElementById('autoDepAmountInput').value = '';
+            document.getElementById('autoDepTxIdInput').value = '';
+            document.getElementById('autoDepVerifyBtn').disabled = false;
+            document.getElementById('autoDepVerifyBtn').innerText = 'التحقق من العملية';
+            
+            document.getElementById('autoDepositMethodPage').style.display = 'flex';
+        }
+
+        function closeAutoDepositMethodPage() {
+            document.getElementById('autoDepositMethodPage').style.display = 'none';
+            document.getElementById('depositPage').style.display = 'flex';
+        }
+
+        async function verifyAutoDeposit() {
+            if (!activeAutoDepositMethod) return;
+            
+            const amount = document.getElementById('autoDepAmountInput').value.trim();
+            const txId = document.getElementById('autoDepTxIdInput').value.trim();
+            
+            if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+                alert('يرجى إدخال المبلغ بشكل صحيح!');
+                return;
+            }
+            if (!txId) {
+                alert('يرجى إدخال رقم العملية!');
+                return;
+            }
+            
+            const savedEmail = localStorage.getItem('loggedInUserEmail');
+            if (!savedEmail) {
+                alert('يرجى تسجيل الدخول أولاً!');
+                return;
+            }
+            
+            const btn = document.getElementById('autoDepVerifyBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'جاري التحقق... <span class="btn-spinner"></span>';
+            
+            try {
+                const res = await fetch('/api/verify_auto_deposit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: savedEmail,
+                        method_id: activeAutoDepositMethod.id,
+                        amount: parseFloat(amount),
+                        tx_id: txId
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('autoDepositMethodPage').style.display = 'none';
+                    document.getElementById('autoDepositSuccessScreen').classList.add('active');
+                    document.getElementById('autoSuccessBalance').innerText = formatBalance(data.new_balance) + ' $';
+                    
+                    applyLoggedInState(savedEmail, data.new_balance, data.user_id);
+                } else {
+                    alert(data.message || 'العملية غير موجودة، تأكد من رقم العملية والمبلغ.');
+                    btn.disabled = false;
+                    btn.innerText = 'التحقق من العملية';
+                }
+            } catch (e) {
+                alert('فشل الاتصال بالخادم!');
+                btn.disabled = false;
+                btn.innerText = 'التحقق من العملية';
+            }
+        }
+
+        function closeAutoDepositSuccess() {
+            document.getElementById('autoDepositSuccessScreen').classList.remove('active');
+            closeAutoDepositMethodPage();
+        }
+
         async function openMyDepositsPage() {
             if (document.getElementById('sidebar').classList.contains('active')) { toggleSidebar(); }
             document.getElementById('shopMainSection').style.display = 'none';
@@ -4936,6 +4236,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myOrdersPage').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'none';
+            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('myDepositsPage').style.display = 'flex';
@@ -4998,6 +4299,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myDepositsPage').style.display = 'none';
             document.getElementById('myOrdersPage').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'none';
+            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'flex';
@@ -5285,6 +4587,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myDepositsPage').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'none';
+            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('myOrdersPage').style.display = 'flex';
@@ -5433,14 +4736,12 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             });
         }
 
-        // ====== PWA INSTALLATION ======
         let deferredPrompt = null;
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             
-            // لا تظهر البانر إذا تم إغلاقه سابقاً
             if (!localStorage.getItem('pwaBannerDismissed')) {
                 setTimeout(() => {
                     const banner = document.getElementById('pwaInstallBanner');
@@ -5479,7 +4780,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             localStorage.setItem('pwaBannerDismissed', 'true');
         }
 
-        // عرض شاشة الترحيب عند فتح التطبيق المثبت
         if (window.matchMedia('(display-mode: standalone)').matches) {
             const splash = document.getElementById('pwaSplashScreen');
             const splashImg = document.getElementById('pwaSplashImg');
@@ -5501,117 +4801,12 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             }
         }
 
-        // تسجيل Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
                     .then(reg => console.log('Service Worker مسجل بنجاح'))
                     .catch(err => console.log('فشل تسجيل Service Worker:', err));
             });
-        }
-
-        // ==================== AUTO DEPOSIT VERIFICATION ====================
-        let currentAutoDepositMethod = null;
-
-        function openAutoDepositVerifyPage(method) {
-            currentAutoDepositMethod = method;
-            document.getElementById('autoDepositTitle').innerText = method.deposit_title || method.name;
-            document.getElementById('autoDepositDesc').innerText = method.description || '';
-
-            document.getElementById('autoDepositAmountInput').value = '';
-            document.getElementById('autoDepositTxIdInput').value = '';
-
-            const verifyBtn = document.getElementById('autoDepositVerifyBtn');
-            verifyBtn.disabled = false;
-            verifyBtn.innerHTML = '🔍 التحقق من العملية';
-
-            document.getElementById('depositPage').style.display = 'none';
-            document.getElementById('autoDepositVerifyPage').style.display = 'flex';
-        }
-
-        function closeAutoDepositVerifyPage() {
-            document.getElementById('autoDepositVerifyPage').style.display = 'none';
-            document.getElementById('depositPage').style.display = 'flex';
-        }
-
-        function goBackToHomeFromAutoDeposit() {
-            document.getElementById('autoDepositSuccessPage').style.display = 'none';
-            document.getElementById('autoDepositVerifyPage').style.display = 'none';
-            document.getElementById('depositPage').style.display = 'none';
-            document.getElementById('shopMainSection').style.display = 'block';
-            if (currentLevel === 'categories') {
-                loadBanners();
-                document.getElementById('tickerWrapper').style.display = 'block';
-            }
-            // تحديث الرصيد
-            checkSavedSession();
-        }
-
-        async function submitAutoDepositVerification() {
-            const amount = parseFloat(document.getElementById('autoDepositAmountInput').value);
-            const txId = document.getElementById('autoDepositTxIdInput').value.trim();
-
-            if (isNaN(amount) || amount <= 0) {
-                showTopNotification('يرجى إدخال مبلغ صحيح!');
-                return;
-            }
-            if (!txId) {
-                showTopNotification('يرجى إدخال رقم العملية!');
-                return;
-            }
-
-            const savedEmail = localStorage.getItem('loggedInUserEmail');
-            if (!savedEmail) {
-                showTopNotification('يرجى تسجيل الدخول أولاً!');
-                return;
-            }
-
-            const verifyBtn = document.getElementById('autoDepositVerifyBtn');
-            verifyBtn.disabled = true;
-            verifyBtn.innerHTML = 'جاري التحقق... <span class="btn-spinner"></span>';
-
-            try {
-                const res = await fetch('/api/verify_shamcash_deposit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: savedEmail,
-                        method_id: currentAutoDepositMethod.id,
-                        amount: amount,
-                        transaction_id: txId
-                    })
-                });
-
-                const data = await res.json();
-
-                if (data.status === 'success') {
-                    // تحديث الرصيد في الواجهة
-                    document.getElementById('successNewBalance').innerText = formatBalance(data.new_balance) + ' $';
-                    document.getElementById('autoDepositVerifyPage').style.display = 'none';
-                    document.getElementById('autoDepositSuccessPage').style.display = 'flex';
-
-                    // إعادة تشغيل الأنيميشن
-                    const circle = document.getElementById('successCheckCircle');
-                    const path = document.getElementById('successCheckPath');
-                    circle.style.animation = 'none';
-                    path.style.animation = 'none';
-                    void circle.offsetWidth;
-                    void path.offsetWidth;
-                    circle.style.animation = 'successPulse 1.5s ease-out';
-                    path.style.animation = 'drawCheck 0.8s ease-out 0.3s forwards';
-
-                    // تحديث الرصيد في الهيدر
-                    document.getElementById('userBalance').innerText = formatBalance(data.new_balance) + ' $';
-                } else {
-                    showTopNotification(data.message || 'فشل التحقق من العملية!');
-                    verifyBtn.disabled = false;
-                    verifyBtn.innerHTML = '🔍 التحقق من العملية';
-                }
-            } catch (e) {
-                showTopNotification('فشل الاتصال بالخادم!');
-                verifyBtn.disabled = false;
-                verifyBtn.innerHTML = '🔍 التحقق من العملية';
-            }
         }
 
         initTheme();
@@ -5627,6 +4822,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
 </body>
 </html>
 """
+
 
 # --------------------------------------------------
 # 3. واجهة الإدمن الخاصة
@@ -5835,7 +5031,6 @@ ADMIN_HTML_CONTENT = """
         .maint-active-banner .icon { font-size: 1.3rem; }
         .maint-active-banner .text { font-size: 0.85rem; font-weight: 700; color: #fff; }
 
-        /* Subcategory Group Styles */
         .group-item-card-admin { background-color: #121212; border: 1px solid #27272a; border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .group-item-card-admin .g-name { font-size: 0.9rem; font-weight: 700; color: #a855f7; }
         .group-item-card-admin .g-count { font-size: 0.75rem; color: #a1a1aa; }
@@ -5849,153 +5044,83 @@ ADMIN_HTML_CONTENT = """
         .group-selector-box .add-group-btn { margin-top: 8px; width: 100%; padding: 10px; background: linear-gradient(135deg, #a855f7, #9333ea); border: none; border-radius: 8px; color: #fff; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
         .group-badge { display: inline-block; background: linear-gradient(135deg, #a855f7, #9333ea); color: #fff; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 8px; margin-right: 4px; }
 
-        /* ====== Edit Imported Items Styles ====== */
-        .imported-item-rect {
-            background: linear-gradient(135deg, #0f172a 0%, #131f37 100%);
-            border: 1px solid #1e293b;
-            border-radius: 14px;
-            padding: 14px 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.2s ease;
-        }
-        .imported-item-rect:hover {
-            border-color: #f59e0b;
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.15);
-        }
-        .imported-item-rect .item-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            flex: 1;
-            min-width: 0;
-        }
-        .imported-item-rect .item-thumb {
-            width: 52px;
-            height: 52px;
-            border-radius: 10px;
-            object-fit: cover;
-            background: #000;
-            border: 1px solid #27272a;
-            flex-shrink: 0;
-        }
-        .imported-item-rect .item-thumb-placeholder {
-            width: 52px;
-            height: 52px;
-            border-radius: 10px;
-            background: #000;
-            border: 1px solid #27272a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #64748b;
-            flex-shrink: 0;
-        }
-        .imported-item-rect .item-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            min-width: 0;
-            flex: 1;
-        }
-        .imported-item-rect .item-name {
-            font-size: 0.92rem;
-            font-weight: 800;
-            color: #ffffff;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .imported-item-rect .item-meta {
-            font-size: 0.72rem;
-            color: #64748b;
-            font-weight: 700;
-            direction: ltr;
-            text-align: right;
-        }
-        .imported-item-rect .item-type-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-size: 0.65rem;
-            font-weight: 800;
-            margin-right: 6px;
-        }
-        .imported-item-rect .badge-category { background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid #0284c7; }
-        .imported-item-rect .badge-product { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid #9333ea; }
-        .imported-item-rect .badge-subcategory { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid #16a34a; }
+        /* Auto Deposit Admin Styles */
+        .auto-deposit-list-item { background-color: #121212; border: 1px solid #27272a; border-radius: 14px; padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; transition: border-color 0.2s; }
+        .auto-deposit-list-item:hover { border-color: #38bdf8; }
+        .auto-deposit-name { font-size: 1rem; font-weight: 800; color: #ffffff; }
+        .auto-deposit-status { font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 10px; }
+        .auto-deposit-status.enabled { background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #4ade80; }
+        .auto-deposit-status.disabled { background: rgba(248, 113, 113, 0.15); color: #f87171; border: 1px solid #f87171; }
+        .auto-deposit-edit-btn { background: transparent; border: 1px solid #38bdf8; border-radius: 8px; color: #38bdf8; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .auto-deposit-edit-btn:hover { background: rgba(56, 189, 248, 0.1); }
+        .auto-deposit-edit-btn svg { width: 20px; height: 20px; fill: currentColor; }
 
-        .imported-item-actions {
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
+        #autoDepositAdminScreen {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #050508; z-index: 99999; overflow-y: auto; padding: 20px;
+            flex-direction: column; gap: 15px;
         }
-        .imported-action-btn {
-            width: 42px;
-            height: 42px;
-            border-radius: 10px;
-            border: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            color: #ffffff;
-        }
-        .imported-action-btn svg {
-            width: 20px;
-            height: 20px;
-        }
-        .imported-action-btn.edit-btn {
-            background: linear-gradient(135deg, #1d4ed8, #3b82f6);
-            box-shadow: 0 3px 10px rgba(59, 130, 246, 0.35);
-        }
-        .imported-action-btn.edit-btn:hover {
-            background: linear-gradient(135deg, #1e40af, #2563eb);
-            transform: translateY(-2px);
-        }
-        .imported-action-btn.delete-btn {
-            background: linear-gradient(135deg, #b91c1c, #ef4444);
-            box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
-        }
-        .imported-action-btn.delete-btn:hover {
-            background: linear-gradient(135deg, #991b1b, #dc2626);
-            transform: translateY(-2px);
-        }
-        .imported-action-btn:active {
-            transform: scale(0.94);
-        }
+        #autoDepositAdminScreen.active { display: flex; }
 
-        /* Breadcrumb */
-        .imported-crumb {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #0f172a;
-            border: 1px solid #1e293b;
-            border-radius: 20px;
-            padding: 5px 12px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            color: #38bdf8;
-            cursor: pointer;
-            transition: all 0.2s;
+        .auto-edit-form-box { background: #121212; border: 1px solid #27272a; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+        .auto-edit-field { display: flex; flex-direction: column; gap: 6px; }
+        .auto-edit-field label { font-size: 0.78rem; color: #a1a1aa; font-weight: 700; }
+        .auto-edit-field input, .auto-edit-field textarea, .auto-edit-field select {
+            background-color: #000; border: 1px solid #27272a; color: #fff;
+            padding: 12px 14px; border-radius: 10px; font-size: 0.85rem; outline: none;
+            width: 100%; transition: border-color 0.2s;
         }
-        .imported-crumb:hover {
+        .auto-edit-field input:focus, .auto-edit-field textarea:focus, .auto-edit-field select:focus {
             border-color: #38bdf8;
-            background: #131f37;
         }
-        .imported-crumb.current {
-            background: #1e293b;
-            color: #f59e0b;
-            cursor: default;
+        .auto-edit-field textarea { resize: vertical; min-height: 70px; }
+
+        .auto-deposit-verify-btn-admin {
+            width: 100%; padding: 16px;
+            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+            border: none; border-radius: 14px; color: #ffffff;
+            font-size: 1.05rem; font-weight: 800; cursor: pointer;
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+            margin-top: 10px;
         }
-        .imported-crumb-sep {
-            color: #475569;
-            font-size: 0.9rem;
+        .auto-deposit-verify-btn-admin:active { transform: scale(0.97); }
+
+        #autoSuccessScreenAdmin {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(160deg, #050508 0%, #0a0a18 40%, #0d1117 100%);
+            z-index: 100000; flex-direction: column; align-items: center; justify-content: center;
+            padding: 24px; gap: 20px;
+        }
+        #autoSuccessScreenAdmin.active { display: flex; }
+        .auto-success-check-admin {
+            width: 120px; height: 120px; border-radius: 50%;
+            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 40px rgba(34, 197, 94, 0.5);
+            animation: successPopAdmin 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+        }
+        @keyframes successPopAdmin {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            60% { transform: scale(1.15) rotate(10deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        .auto-success-check-admin svg {
+            width: 60px; height: 60px; stroke: #ffffff; stroke-width: 4;
+            fill: none; stroke-linecap: round; stroke-linejoin: round;
+            stroke-dasharray: 100; stroke-dashoffset: 100;
+            animation: drawCheckAdmin 0.5s ease-out 0.4s forwards;
+        }
+        @keyframes drawCheckAdmin {
+            0% { stroke-dashoffset: 100; }
+            100% { stroke-dashoffset: 0; }
+        }
+        .auto-success-msg-admin {
+            font-size: 1.1rem; color: #d1fae5; text-align: center;
+            font-weight: 700; line-height: 1.8; max-width: 320px;
+        }
+        .auto-success-balance-admin {
+            font-size: 1.8rem; font-weight: 800; color: #4ade80;
+            direction: ltr; text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
         }
     </style>
 </head>
@@ -6079,7 +5204,6 @@ ADMIN_HTML_CONTENT = """
                 <button class="sub-menu-btn" onclick="openProfitMarginModal()">نسبة الربح</button>
                 <button class="sub-menu-btn" onclick="openViewProvidersPage()">عرض المزودات</button>
                 <button class="sub-menu-btn" onclick="openApiImportScreen()" style="color:#4ade80; border-color:#4ade80; font-weight:800;">سحب API</button>
-                <button class="sub-menu-btn" onclick="openEditImportedScreen()" style="color:#f59e0b; border-color:#f59e0b; font-weight:800;">تعديل العناصر المستوردة</button>
             </div>
 
             <button class="admin-menu-btn" onclick="toggleSubMenu('usersMenu')">
@@ -6103,7 +5227,7 @@ ADMIN_HTML_CONTENT = """
                 <button class="sub-menu-btn" onclick="openDeleteDepositMethodModal()">حذف طريقة</button>
                 <button class="sub-menu-btn" onclick="openViewDepositMethodsModal()">عرض الطرق المضافة</button>
                 <button class="sub-menu-btn" onclick="openAddCurrencyModal()" style="color:#f59e0b; border-color:#f59e0b;">ادارة العملات</button>
-                <button class="sub-menu-btn" onclick="openAutoDepositsScreen()" style="color:#4ade80; border-color:#4ade80; font-weight:800;">⚡ إدارة الإيداعات التلقائية</button>
+                <button class="sub-menu-btn" onclick="openAutoDepositAdminScreen()" style="color:#4ade80; border-color:#4ade80; font-weight:800;">ادارة الايداعات التلقائية</button>
             </div>
         </div>
 
@@ -6194,6 +5318,65 @@ ADMIN_HTML_CONTENT = """
                 <button class="save-btn" onclick="saveTickerSettings()">حفظ</button>
                 <button class="btn-secondary" onclick="closeModal('tickerSettingsModalOverlay')">إلغاء</button>
             </div>
+        </div>
+
+        <!-- Auto Deposit Admin Screen -->
+        <div id="autoDepositAdminScreen">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #27272a; padding-bottom:12px; margin-bottom:10px;">
+                <span style="font-size:1.15rem; font-weight:800; color:#4ade80;">ادارة الايداعات التلقائية</span>
+                <button class="btn-secondary" onclick="closeAutoDepositAdminScreen()">رجوع</button>
+            </div>
+            <div id="autoDepositListContainer"></div>
+        </div>
+
+        <!-- Auto Deposit Edit Form Fullscreen -->
+        <div id="autoDepositEditScreen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#050508; z-index:100001; overflow-y:auto; padding:20px; flex-direction:column; gap:15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #27272a; padding-bottom:12px;">
+                <span style="font-size:1.05rem; font-weight:800; color:#38bdf8;" id="autoEditTitle">تعديل طريقة الإيداع</span>
+                <button class="btn-secondary" onclick="closeAutoDepositEditScreen()">رجوع</button>
+            </div>
+            <div class="auto-edit-form-box">
+                <div class="auto-edit-field">
+                    <label>توكن API:</label>
+                    <input type="text" id="autoEditToken" placeholder="أدخل توكن API...">
+                </div>
+                <div class="auto-edit-field">
+                    <label>اسم طريقة جديدة (بحال حبيت غير الاسم):</label>
+                    <input type="text" id="autoEditDisplayName" placeholder="أدخل الاسم...">
+                </div>
+                <div class="auto-edit-field">
+                    <label>سعر الصرف:</label>
+                    <input type="number" id="autoEditExchangeRate" placeholder="أدخل سعر الصرف..." step="0.01" min="0.01">
+                </div>
+                <div class="auto-edit-field">
+                    <label>عنوان طريقة الإيداع:</label>
+                    <input type="text" id="autoEditAddress" placeholder="أدخل عنوان طريقة الإيداع...">
+                </div>
+                <div class="auto-edit-field">
+                    <label>صورة الطريقة:</label>
+                    <input type="file" id="autoEditImageInput" accept="image/*">
+                </div>
+                <div class="auto-edit-field">
+                    <label>وصف الطريقة:</label>
+                    <textarea id="autoEditDescription" placeholder="أدخل وصف الطريقة..."></textarea>
+                </div>
+                <button class="auto-deposit-verify-btn-admin" onclick="saveAutoDepositSettings()">حفظ وتحديث البيانات</button>
+            </div>
+        </div>
+
+        <!-- Auto Deposit Success Screen Admin -->
+        <div id="autoSuccessScreenAdmin">
+            <div class="auto-success-check-admin">
+                <svg viewBox="0 0 52 52">
+                    <path d="M14 27l8 8 16-16"/>
+                </svg>
+            </div>
+            <div class="auto-success-msg-admin" id="autoSuccessMsgAdmin">
+                تمت عملية تطابق المبلغ بنجاح<br>
+                تمت عملية ايداع رصيد التلقائي لحسابك
+            </div>
+            <div class="auto-success-balance-admin" id="autoSuccessBalanceAdmin">0.000 $</div>
+            <button class="save-btn" style="padding:14px 40px; font-size:1rem;" onclick="closeAutoSuccessAdmin()">رجوع للصفحة الرئيسية</button>
         </div>
 
         <!-- Group Modals -->
@@ -6569,73 +5752,6 @@ Code   : -
                     </div>
                     <button class="save-btn" style="background:linear-gradient(135deg, #16a34a, #22c55e);" onclick="confirmApiImport()">تأكيد الاستيراد</button>
                     <button class="btn-secondary" onclick="closeModal('importDetailsModal')">إلغاء</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="editImportedScreen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#050508; z-index:99999; overflow-y:auto; flex-direction:column; padding:20px;">
-            <div style="position:sticky; top:0; background:linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); padding:16px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #f59e0b; z-index:10; margin:-20px -20px 20px -20px;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <button id="editImportedBackBtn" onclick="editImportedGoBack()" style="background:rgba(255,255,255,0.15); border:none; color:#fff; padding:8px 14px; border-radius:8px; font-size:0.85rem; font-weight:700; cursor:pointer; display:none;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle; margin-left:4px;"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                        رجوع
-                    </button>
-                    <div style="font-size:1.1rem; font-weight:800; color:#fff;" id="editImportedTitle">📦 الأقسام المستوردة</div>
-                </div>
-                <button onclick="closeEditImportedScreen()" style="background:rgba(255,255,255,0.15); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:1.2rem; cursor:pointer;">✕</button>
-            </div>
-
-            <!-- مسار التنقل -->
-            <div id="editImportedBreadcrumb" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:15px; font-size:0.8rem; color:#a1a1aa; align-items:center;"></div>
-
-            <!-- قائمة العناصر -->
-            <div id="editImportedListContainer" style="display:flex; flex-direction:column; gap:12px;"></div>
-
-            <!-- حالة فارغة -->
-            <div id="editImportedEmpty" style="display:none; text-align:center; padding:60px 20px; color:#a1a1aa; font-size:0.9rem; font-weight:700;">
-                لا توجد عناصر مستوردة حتى الآن
-            </div>
-        </div>
-
-        <!-- ================= EDIT ITEM MODAL ================= -->
-        <div class="modal-overlay" id="editImportedItemModal">
-            <div class="modal-box">
-                <div class="modal-title" style="color:#f59e0b;">✏️ تعديل العنصر</div>
-
-                <div class="form-group">
-                    <label>الاسم:</label>
-                    <input type="text" id="editImportedNameInput" placeholder="أدخل الاسم الجديد...">
-                </div>
-
-                <div class="form-group" id="editImportedProfitGroup">
-                    <label>نسبة الربح (%):</label>
-                    <input type="number" id="editImportedProfitInput" placeholder="مثال: 10" step="0.1" min="0">
-                    <div style="font-size:0.72rem; color:#a1a1aa; margin-top:4px;">تُطبق على السعر الأساسي القادم من المزود.</div>
-                </div>
-
-                <div class="form-group">
-                    <label>الصورة (اتركها فارغة للاحتفاظ بالصورة الحالية):</label>
-                    <input type="file" id="editImportedImageInput" accept="image/*">
-                    <div id="editImportedImagePreview" style="margin-top:8px; display:none;">
-                        <img id="editImportedImagePreviewImg" style="width:100%; max-height:150px; object-fit:cover; border-radius:8px; border:1px solid #27272a;">
-                    </div>
-                </div>
-
-                <button class="save-btn" style="background:linear-gradient(135deg, #b45309, #f59e0b);" onclick="saveEditImportedItem()">💾 حفظ التعديلات</button>
-                <button class="btn-secondary" onclick="closeModal('editImportedItemModal')">إلغاء</button>
-            </div>
-        </div>
-
-        <!-- ================= DELETE CONFIRM MODAL ================= -->
-        <div class="modal-overlay" id="deleteImportedItemModal">
-            <div class="modal-box">
-                <div class="modal-title" style="color:#f87171;">⚠️ تأكيد الحذف</div>
-                <div style="text-align:center; padding:15px; font-size:0.9rem; color:#fff; line-height:1.7;" id="deleteImportedItemMsg">
-                    هل أنت متأكد من حذف هذا العنصر وكل ما يحتويه؟
-                </div>
-                <div class="action-btns-row">
-                    <button class="btn-reject" onclick="confirmDeleteImportedItem()">🗑️ نعم، احذف</button>
-                    <button class="btn-secondary" onclick="closeModal('deleteImportedItemModal')">إلغاء</button>
                 </div>
             </div>
         </div>
@@ -7703,6 +6819,149 @@ Code   : -
             }
         }
 
+        // ====== Auto Deposit Admin ======
+        let autoDepositMethodsCache = [];
+
+        function openAutoDepositAdminScreen() {
+            toggleSidebar();
+            document.getElementById('adminMainSection').style.display = 'none';
+            document.getElementById('checkOrdersPage').style.display = 'none';
+            document.getElementById('checkDepositsPage').style.display = 'none';
+            document.getElementById('viewProvidersPage').style.display = 'none';
+            document.getElementById('deleteCategoryPage').style.display = 'none';
+            document.getElementById('deleteProductPage').style.display = 'none';
+            document.getElementById('clientsListScreen').classList.remove('active');
+            document.getElementById('apiImportScreen').classList.remove('active');
+            document.getElementById('autoDepositAdminScreen').classList.add('active');
+
+            loadAutoDepositMethods();
+        }
+
+        function closeAutoDepositAdminScreen() {
+            document.getElementById('autoDepositAdminScreen').classList.remove('active');
+            document.getElementById('adminMainSection').style.display = 'block';
+            fetchStatsAndRender();
+        }
+
+        async function loadAutoDepositMethods() {
+            const container = document.getElementById('autoDepositListContainer');
+            container.innerHTML = '<div style="text-align:center; color:#a1a1aa; font-size:0.85rem; padding:20px;">جاري التحميل...</div>';
+
+            try {
+                const res = await fetch('/api/get_auto_deposit_methods');
+                const methods = await res.json();
+                autoDepositMethodsCache = methods;
+
+                container.innerHTML = '';
+                methods.forEach(m => {
+                    const item = document.createElement('div');
+                    item.className = 'auto-deposit-list-item';
+                    item.innerHTML = `
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <span class="auto-deposit-name">${m.name}</span>
+                            <span class="auto-deposit-status ${m.enabled ? 'enabled' : 'disabled'}">${m.enabled ? 'مفعل' : 'غير مفعل'}</span>
+                        </div>
+                        <button class="auto-deposit-edit-btn" onclick="openAutoDepositEdit('${m.id}')" title="تعديل">
+                            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                        </button>
+                    `;
+                    container.appendChild(item);
+                });
+            } catch (e) {
+                container.innerHTML = '<div style="text-align:center; color:#f87171; font-size:0.85rem; padding:20px;">فشل تحميل البيانات!</div>';
+            }
+        }
+
+        async function openAutoDepositEdit(methodId) {
+            const method = autoDepositMethodsCache.find(m => m.id === methodId);
+            if (!method) return;
+
+            document.getElementById('autoEditTitle').innerText = 'تعديل: ' + method.name;
+            document.getElementById('autoEditToken').value = method.api_token || '';
+            document.getElementById('autoEditDisplayName').value = method.display_name || method.name;
+            document.getElementById('autoEditExchangeRate').value = method.exchange_rate || 1;
+            document.getElementById('autoEditAddress').value = method.address || '';
+            document.getElementById('autoEditDescription').value = method.description || '';
+            document.getElementById('autoEditImageInput').value = '';
+
+            window._editingAutoDepositId = methodId;
+            document.getElementById('autoDepositEditScreen').style.display = 'flex';
+        }
+
+        function closeAutoDepositEditScreen() {
+            document.getElementById('autoDepositEditScreen').style.display = 'none';
+            window._editingAutoDepositId = null;
+        }
+
+        async function saveAutoDepositSettings() {
+            const methodId = window._editingAutoDepositId;
+            if (!methodId) return;
+
+            const token = document.getElementById('autoEditToken').value.trim();
+            const displayName = document.getElementById('autoEditDisplayName').value.trim();
+            const exchangeRate = parseFloat(document.getElementById('autoEditExchangeRate').value);
+            const address = document.getElementById('autoEditAddress').value.trim();
+            const description = document.getElementById('autoEditDescription').value.trim();
+            const fileInput = document.getElementById('autoEditImageInput');
+
+            if (!token) {
+                alert('يرجى إدخال توكن API!');
+                return;
+            }
+            if (isNaN(exchangeRate) || exchangeRate <= 0) {
+                alert('يرجى إدخال سعر صرف صحيح!');
+                return;
+            }
+
+            let imageData = '';
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                imageData = await new Promise((resolve) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(fileInput.files[0]);
+                });
+            }
+
+            const method = autoDepositMethodsCache.find(m => m.id === methodId);
+            if (!method) return;
+
+            const updatedData = {
+                id: methodId,
+                enabled: true,
+                api_token: token,
+                display_name: displayName || method.name,
+                exchange_rate: exchangeRate,
+                address: address,
+                description: description,
+                image: imageData || method.image,
+                coin_id: method.coin_id
+            };
+
+            try {
+                const res = await fetch('/api/save_auto_deposit_method', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('تم حفظ الإعدادات بنجاح!');
+                    closeAutoDepositEditScreen();
+                    loadAutoDepositMethods();
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء الحفظ!');
+                }
+            } catch (e) {
+                alert('فشل الاتصال بالخادم!');
+            }
+        }
+
+        function closeAutoSuccessAdmin() {
+            document.getElementById('autoSuccessScreenAdmin').classList.remove('active');
+        }
+
+        // ====== End Auto Deposit Admin ======
+
         let clientsListCache = [];
         let selectedClientEmail = null;
 
@@ -7714,6 +6973,7 @@ Code   : -
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
+            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.add('active');
 
@@ -7869,6 +7129,7 @@ Code   : -
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
             document.getElementById('clientsListScreen').classList.remove('active');
+            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.add('active');
 
             fetch('/api/get_providers')
@@ -8055,181 +7316,6 @@ Code   : -
             alert('سيتم فتح القسم: ' + categoryName + ' في المتجر');
         }
 
-        // ==================== AUTO DEPOSITS MANAGEMENT ====================
-        let autoDepositMethodsCache = {};
-        let currentEditingAutoId = null;
-
-        async function openAutoDepositsScreen() {
-            toggleSidebar();
-            document.getElementById('adminMainSection').style.display = 'none';
-            document.getElementById('checkOrdersPage').style.display = 'none';
-            document.getElementById('checkDepositsPage').style.display = 'none';
-            document.getElementById('viewProvidersPage').style.display = 'none';
-            document.getElementById('deleteCategoryPage').style.display = 'none';
-            document.getElementById('deleteProductPage').style.display = 'none';
-            document.getElementById('apiImportScreen').classList.remove('active');
-            document.getElementById('clientsListScreen').classList.remove('active');
-            document.getElementById('autoDepositsScreen').style.display = 'flex';
-
-            await loadAutoDepositMethods();
-        }
-
-        function closeAutoDepositsScreen() {
-            document.getElementById('autoDepositsScreen').style.display = 'none';
-            document.getElementById('adminMainSection').style.display = 'block';
-            fetchStatsAndRender();
-        }
-
-        async function loadAutoDepositMethods() {
-            try {
-                const res = await fetch('/api/get_auto_deposit_methods');
-                autoDepositMethodsCache = await res.json();
-                renderAutoDepositsList();
-            } catch (e) {
-                console.error('فشل تحميل طرق الإيداع التلقائي:', e);
-            }
-        }
-
-        function renderAutoDepositsList() {
-            const container = document.getElementById('autoDepositsList');
-            container.innerHTML = '';
-
-            const methods = Object.values(autoDepositMethodsCache);
-
-            if (methods.length === 0) {
-                container.innerHTML = '<div style="text-align:center; color:#a1a1aa; padding:30px; font-weight:700;">لا توجد طرق إيداع تلقائي</div>';
-                return;
-            }
-
-            methods.forEach(m => {
-                const rect = document.createElement('div');
-                rect.style.cssText = 'background:#121212; border:1px solid #27272a; border-radius:16px; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; gap:12px;';
-
-                const isEnabled = m.enabled === true;
-                const statusColor = isEnabled ? '#4ade80' : '#a1a1aa';
-                const statusText = isEnabled ? 'مُفعّل' : 'معطّل';
-
-                rect.innerHTML = `
-                    <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:0;">
-                        <div style="font-size:1rem; font-weight:800; color:#ffffff;">${m.name || '-'}</div>
-                        <div style="font-size:0.72rem; color:${statusColor}; font-weight:700;">${statusText}</div>
-                        <div style="font-size:0.7rem; color:#64748b; direction:ltr; text-align:right;">${m.api_token ? 'Token: ' + m.api_token.substring(0, 12) + '...' : 'بدون توكن'}</div>
-                    </div>
-                    <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
-                        <label style="position:relative; display:inline-block; width:44px; height:24px; cursor:pointer;">
-                            <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleAutoDeposit('${m.id}', this.checked)" style="opacity:0; width:0; height:0;">
-                            <span style="position:absolute; top:0; left:0; right:0; bottom:0; background-color:${isEnabled ? '#16a34a' : '#3f3f46'}; transition:.3s; border-radius:24px;"></span>
-                            <span style="position:absolute; height:18px; width:18px; left:${isEnabled ? '23px' : '3px'}; bottom:3px; background-color:white; transition:.3s; border-radius:50%;"></span>
-                        </label>
-                        <button onclick="openEditAutoDeposit('${m.id}')" title="تعديل" style="background:linear-gradient(135deg, #1d4ed8, #3b82f6); border:none; width:42px; height:42px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(59,130,246,0.35);">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px; height:20px;">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                            </svg>
-                        </button>
-                    </div>
-                `;
-                container.appendChild(rect);
-            });
-        }
-
-        async function toggleAutoDeposit(methodId, isEnabled) {
-            try {
-                const res = await fetch('/api/toggle_auto_deposit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: methodId, enabled: isEnabled })
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    await loadAutoDepositMethods();
-                } else {
-                    alert('فشل التحديث!');
-                }
-            } catch (e) {
-                alert('فشل الاتصال بالخادم!');
-            }
-        }
-
-        async function openEditAutoDeposit(methodId) {
-            currentEditingAutoId = methodId;
-            const m = autoDepositMethodsCache[methodId];
-
-            if (!m) return;
-
-            document.getElementById('autoApiTokenInput').value = m.api_token || '';
-            document.getElementById('autoNameInput').value = m.name || '';
-            document.getElementById('autoExchangeRateInput').value = m.exchange_rate || 1;
-            document.getElementById('autoTitleInput').value = m.deposit_title || '';
-            document.getElementById('autoDescriptionInput').value = m.description || '';
-            document.getElementById('autoImageInput').value = '';
-
-            const preview = document.getElementById('autoImagePreview');
-            const previewImg = document.getElementById('autoImagePreviewImg');
-            if (m.image) {
-                previewImg.src = m.image;
-                preview.style.display = 'block';
-            } else {
-                preview.style.display = 'none';
-            }
-
-            openModal('editAutoDepositModal');
-        }
-
-        async function saveAutoDepositMethod() {
-            if (!currentEditingAutoId) return;
-
-            const token = document.getElementById('autoApiTokenInput').value.trim();
-            const name = document.getElementById('autoNameInput').value.trim();
-            const exchangeRate = parseFloat(document.getElementById('autoExchangeRateInput').value);
-            const title = document.getElementById('autoTitleInput').value.trim();
-            const description = document.getElementById('autoDescriptionInput').value.trim();
-            const fileInput = document.getElementById('autoImageInput');
-
-            if (!token || !name || isNaN(exchangeRate) || exchangeRate <= 0) {
-                alert('يرجى تعبئة التوكن والاسم وسعر الصرف بشكل صحيح!');
-                return;
-            }
-
-            let imageData = '';
-            if (fileInput.files && fileInput.files[0]) {
-                imageData = await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(fileInput.files[0]);
-                });
-            }
-
-            try {
-                const res = await fetch('/api/update_auto_deposit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: currentEditingAutoId,
-                        api_token: token,
-                        name: name,
-                        exchange_rate: exchangeRate,
-                        deposit_title: title,
-                        description: description,
-                        image: imageData
-                    })
-                });
-                const data = await res.json();
-
-                if (data.status === 'success') {
-                    alert('✅ تم حفظ وتحديث البيانات بنجاح!');
-                    closeModal('editAutoDepositModal');
-                    await loadAutoDepositMethods();
-                } else {
-                    alert('❌ ' + (data.message || 'فشل الحفظ!'));
-                }
-            } catch (e) {
-                alert('فشل الاتصال بالخادم!');
-            }
-        }
-
-        // ==================== END AUTO DEPOSITS MANAGEMENT ====================
-
         function openAddCurrencyModal() {
             toggleSidebar();
             document.getElementById('currencyNameInput').value = '';
@@ -8331,7 +7417,6 @@ Code   : -
                 if (a.deposit_card_size) document.getElementById('depositCardSizeRange').value = a.deposit_card_size;
                 if (a.category_card_size) document.getElementById('categoryCardSizeRange').value = a.category_card_size;
 
-                // ألوان الوضع الداكن
                 if (a.dark_bg_color) document.getElementById('darkBgColor').value = a.dark_bg_color;
                 if (a.dark_card_bg) document.getElementById('darkCardBg').value = a.dark_card_bg;
                 if (a.dark_border_color) document.getElementById('darkBorderColor').value = a.dark_border_color;
@@ -8339,7 +7424,6 @@ Code   : -
                 if (a.dark_subtext_color) document.getElementById('darkSubtextColor').value = a.dark_subtext_color;
                 if (a.dark_sidebar_bg) document.getElementById('darkSidebarBg').value = a.dark_sidebar_bg;
 
-                // ألوان الوضع الفاتح
                 if (a.light_bg_color) document.getElementById('lightBgColor').value = a.light_bg_color;
                 if (a.light_card_bg) document.getElementById('lightCardBg').value = a.light_card_bg;
                 if (a.light_border_color) document.getElementById('lightBorderColor').value = a.light_border_color;
@@ -8348,7 +7432,6 @@ Code   : -
                 if (a.light_sidebar_bg) document.getElementById('lightSidebarBg').value = a.light_sidebar_bg;
                 if (a.light_accent_color) document.getElementById('lightAccentColor').value = a.light_accent_color;
 
-                // PWA
                 if (a.pwa_name) document.getElementById('pwaName').value = a.pwa_name;
                 if (a.pwa_short_name) document.getElementById('pwaShortName').value = a.pwa_short_name;
                 if (a.pwa_theme_color) document.getElementById('pwaThemeColor').value = a.pwa_theme_color;
@@ -8398,7 +7481,6 @@ Code   : -
         }
 
         async function saveAppearanceSettings() {
-            // قراءة ألوان الوضع الداكن
             const darkBgColor = document.getElementById('darkBgColor').value;
             const darkCardBg = document.getElementById('darkCardBg').value;
             const darkBorderColor = document.getElementById('darkBorderColor').value;
@@ -8406,7 +7488,6 @@ Code   : -
             const darkSubtextColor = document.getElementById('darkSubtextColor').value;
             const darkSidebarBg = document.getElementById('darkSidebarBg').value;
             
-            // قراءة ألوان الوضع الفاتح
             const lightBgColor = document.getElementById('lightBgColor').value;
             const lightCardBg = document.getElementById('lightCardBg').value;
             const lightBorderColor = document.getElementById('lightBorderColor').value;
@@ -8415,12 +7496,10 @@ Code   : -
             const lightSidebarBg = document.getElementById('lightSidebarBg').value;
             const lightAccentColor = document.getElementById('lightAccentColor').value;
             
-            // قراءة إعدادات PWA
             const pwaName = document.getElementById('pwaName').value;
             const pwaShortName = document.getElementById('pwaShortName').value;
             const pwaThemeColor = document.getElementById('pwaThemeColor').value;
             
-            // قراءة صور PWA
             const pwaIconInput = document.getElementById('pwaIconInput');
             const pwaSplashInput = document.getElementById('pwaSplashInput');
             
@@ -8458,14 +7537,12 @@ Code   : -
                 bottom_nav_height: parseInt(document.getElementById('bottomNavSizeRange').value),
                 deposit_card_size: parseInt(document.getElementById('depositCardSizeRange').value),
                 category_card_size: parseInt(document.getElementById('categoryCardSizeRange').value),
-                // الوضع الداكن
                 dark_bg_color: darkBgColor,
                 dark_card_bg: darkCardBg,
                 dark_border_color: darkBorderColor,
                 dark_text_color: darkTextColor,
                 dark_subtext_color: darkSubtextColor,
                 dark_sidebar_bg: darkSidebarBg,
-                // الوضع الفاتح
                 light_bg_color: lightBgColor,
                 light_card_bg: lightCardBg,
                 light_border_color: lightBorderColor,
@@ -8473,7 +7550,6 @@ Code   : -
                 light_subtext_color: lightSubtextColor,
                 light_sidebar_bg: lightSidebarBg,
                 light_accent_color: lightAccentColor,
-                // PWA
                 pwa_name: pwaName,
                 pwa_short_name: pwaShortName,
                 pwa_theme_color: pwaThemeColor,
@@ -8518,6 +7594,7 @@ Code   : -
             document.getElementById('checkDepositsPage').style.display = 'none';
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
+            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('deleteCategoryPage').style.display = 'flex';
@@ -8770,6 +7847,7 @@ Code   : -
             document.getElementById('checkDepositsPage').style.display = 'none';
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
+            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('deleteProductPage').style.display = 'flex';
@@ -9131,6 +8209,7 @@ Code   : -
             document.getElementById('checkDepositsPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
+            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('viewProvidersPage').style.display = 'flex';
@@ -9347,7 +8426,6 @@ Code   : -
             }, 600);
         }
 
-        // ====== Subcategory Group Management ======
         let groupsCache = {};
 
         function openAddGroupModal() {
@@ -9553,8 +8631,6 @@ Code   : -
                 alert('فشل الاتصال بالخادم!');
             }
         }
-
-        // ====== End Subcategory Group Management ======
 
         function openAddCategoryModal() {
             toggleSidebar();
@@ -9870,10 +8946,6 @@ Code   : -
                 products.forEach(p => {
                     prodSelect.innerHTML += `<option value="${p.name}">${p.name}</option>`;
                 });
-                
-                // ✅ ربط تغيير المنتج بتحديث المجموعات
-                prodSelect.onchange = updateSubCatGroupSelect;
-                
                 const provSelect = document.getElementById('subCatProviderSelect');
                 provSelect.innerHTML = '<option value="">بدون مزود (يدوي)</option>';
                 providers.forEach(p => {
@@ -10082,6 +9154,7 @@ Code   : -
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
+            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('checkOrdersPage').style.display = 'flex';
@@ -10163,6 +9236,7 @@ Code   : -
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
+            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('checkDepositsPage').style.display = 'flex';
@@ -10449,6 +9523,7 @@ Code   : -
             document.getElementById('deleteProductPage').style.display = 'none';
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
+            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             
             document.getElementById('allOrdersScreen').classList.add('active');
             document.getElementById('adminOrderSearchInput').value = '';
@@ -10581,487 +9656,6 @@ Code   : -
             }
         }
 
-        // ==================== EDIT IMPORTED ITEMS ====================
-        let editImportedState = {
-            path: [],
-            currentLevel: 'root',
-            currentId: null,
-            parentProduct: null,
-            cache: null
-        };
-
-        const ICON_EDIT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-        const ICON_DELETE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`;
-        const ICON_FOLDER = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>`;
-        const ICON_BOX = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/></svg>`;
-        const ICON_TAG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg>`;
-
-        function openEditImportedScreen() {
-            toggleSidebar();
-            document.getElementById('adminMainSection').style.display = 'none';
-            document.getElementById('checkOrdersPage').style.display = 'none';
-            document.getElementById('checkDepositsPage').style.display = 'none';
-            document.getElementById('viewProvidersPage').style.display = 'none';
-            document.getElementById('deleteCategoryPage').style.display = 'none';
-            document.getElementById('deleteProductPage').style.display = 'none';
-            document.getElementById('clientsListScreen').classList.remove('active');
-            document.getElementById('apiImportScreen').classList.remove('active');
-
-            editImportedState = {
-                path: [],
-                currentLevel: 'root',
-                currentId: null,
-                parentProduct: null,
-                cache: null
-            };
-
-            document.getElementById('editImportedScreen').style.display = 'flex';
-            loadImportedRoot();
-        }
-
-        function closeEditImportedScreen() {
-            document.getElementById('editImportedScreen').style.display = 'none';
-            document.getElementById('adminMainSection').style.display = 'block';
-        }
-
-        function renderEditImportedBreadcrumb() {
-            const container = document.getElementById('editImportedBreadcrumb');
-            container.innerHTML = '';
-
-            const rootCrumb = document.createElement('div');
-            rootCrumb.className = 'imported-crumb' + (editImportedState.path.length === 0 ? ' current' : '');
-            rootCrumb.innerHTML = `${ICON_FOLDER} الأقسام الرئيسية`;
-            if (editImportedState.path.length > 0) {
-                rootCrumb.onclick = () => {
-                    editImportedState.path = [];
-                    loadImportedRoot();
-                };
-            }
-            container.appendChild(rootCrumb);
-
-            editImportedState.path.forEach((node, idx) => {
-                const sep = document.createElement('span');
-                sep.className = 'imported-crumb-sep';
-                sep.innerText = '◀';
-                container.appendChild(sep);
-
-                const crumb = document.createElement('div');
-                const isLast = idx === editImportedState.path.length - 1;
-                crumb.className = 'imported-crumb' + (isLast ? ' current' : '');
-                crumb.innerText = node.name;
-                if (!isLast) {
-                    crumb.onclick = () => {
-                        editImportedState.path = editImportedState.path.slice(0, idx + 1);
-                        navigateToNode(node);
-                    };
-                }
-                container.appendChild(crumb);
-            });
-
-            const backBtn = document.getElementById('editImportedBackBtn');
-            backBtn.style.display = editImportedState.path.length > 0 ? 'block' : 'none';
-        }
-
-        function editImportedGoBack() {
-            if (editImportedState.path.length === 0) return;
-            editImportedState.path.pop();
-            if (editImportedState.path.length === 0) {
-                loadImportedRoot();
-            } else {
-                navigateToNode(editImportedState.path[editImportedState.path.length - 1]);
-            }
-        }
-
-        function navigateToNode(node) {
-            if (node.type === 'category') {
-                loadImportedCategoryProducts(node.id, node.name);
-            } else if (node.type === 'product') {
-                loadImportedProductChildren(node.id, node.name, node.parentCategory);
-            } else if (node.type === 'subcategory') {
-                loadImportedProductChildren(node.id, node.name, node.parentCategory);
-            }
-        }
-
-        async function loadImportedRoot() {
-            editImportedState.currentLevel = 'root';
-            editImportedState.currentId = null;
-
-            const container = document.getElementById('editImportedListContainer');
-            const emptyMsg = document.getElementById('editImportedEmpty');
-            container.innerHTML = '<div style="text-align:center; padding:40px; color:#a1a1aa; font-weight:700;">جاري التحميل...</div>';
-            emptyMsg.style.display = 'none';
-
-            document.getElementById('editImportedTitle').innerText = '📦 الأقسام المستوردة';
-
-            try {
-                const res = await fetch('/api/get_imported_categories');
-                const data = await res.json();
-
-                renderEditImportedBreadcrumb();
-                container.innerHTML = '';
-
-                if (!data || data.length === 0) {
-                    emptyMsg.style.display = 'block';
-                    return;
-                }
-
-                data.forEach(cat => {
-                    const rect = buildImportedItemRect({
-                        type: 'category',
-                        id: cat.name,
-                        name: cat.name,
-                        image: cat.image || '',
-                        extra: `منتج: ${cat.products_count || 0} | فئة: ${cat.subcategories_count || 0}`,
-                        badge: 'قسم رئيسي',
-                        badgeClass: 'badge-category',
-                        parentCategory: cat.name
-                    });
-                    container.appendChild(rect);
-                });
-            } catch (e) {
-                console.error(e);
-                container.innerHTML = '<div style="text-align:center; color:#f87171; padding:30px; font-weight:700;">فشل التحميل!</div>';
-            }
-        }
-
-        async function loadImportedCategoryProducts(categoryName, categoryDisplayName) {
-            editImportedState.currentLevel = 'category';
-            editImportedState.currentId = categoryName;
-
-            document.getElementById('editImportedTitle').innerText = `📁 ${categoryDisplayName}`;
-
-            const container = document.getElementById('editImportedListContainer');
-            const emptyMsg = document.getElementById('editImportedEmpty');
-            container.innerHTML = '<div style="text-align:center; padding:40px; color:#a1a1aa; font-weight:700;">جاري التحميل...</div>';
-            emptyMsg.style.display = 'none';
-
-            try {
-                const res = await fetch('/api/get_imported_items?category=' + encodeURIComponent(categoryName));
-                const data = await res.json();
-
-                renderEditImportedBreadcrumb();
-                container.innerHTML = '';
-
-                const products = data.products || [];
-                const subcats = data.subcategories || [];
-
-                if (products.length === 0 && subcats.length === 0) {
-                    emptyMsg.style.display = 'block';
-                    return;
-                }
-
-                products.forEach(p => {
-                    const rect = buildImportedItemRect({
-                        type: 'product',
-                        id: p.name,
-                        name: p.name,
-                        image: p.image || '',
-                        extra: p.has_children ? 'يحتوي على عناصر فرعية' : 'منتج',
-                        badge: 'منتج',
-                        badgeClass: 'badge-product',
-                        parentCategory: categoryName
-                    });
-                    container.appendChild(rect);
-                });
-
-                subcats.forEach(s => {
-                    const rect = buildImportedItemRect({
-                        type: 'subcategory',
-                        id: s.name,
-                        name: s.name,
-                        image: s.image || '',
-                        extra: `السعر: ${formatBalance(s.price)}$ | ربح: ${s.profit_margin || 0}%`,
-                        badge: 'فئة',
-                        badgeClass: 'badge-subcategory',
-                        parentCategory: categoryName,
-                        parentProduct: s.product
-                    });
-                    container.appendChild(rect);
-                });
-            } catch (e) {
-                console.error(e);
-                container.innerHTML = '<div style="text-align:center; color:#f87171; padding:30px; font-weight:700;">فشل التحميل!</div>';
-            }
-        }
-
-        async function loadImportedProductChildren(productName, productDisplayName, parentCategory) {
-            editImportedState.currentLevel = 'product';
-            editImportedState.currentId = productName;
-            editImportedState.parentProduct = productName;
-
-            document.getElementById('editImportedTitle').innerText = `📦 ${productDisplayName}`;
-
-            const container = document.getElementById('editImportedListContainer');
-            const emptyMsg = document.getElementById('editImportedEmpty');
-            container.innerHTML = '<div style="text-align:center; padding:40px; color:#a1a1aa; font-weight:700;">جاري التحميل...</div>';
-            emptyMsg.style.display = 'none';
-
-            try {
-                const res = await fetch('/api/get_imported_items?category=' + encodeURIComponent(parentCategory) + '&product=' + encodeURIComponent(productName));
-                const data = await res.json();
-
-                renderEditImportedBreadcrumb();
-                container.innerHTML = '';
-
-                const products = data.products || [];
-                const subcats = data.subcategories || [];
-
-                if (products.length === 0 && subcats.length === 0) {
-                    emptyMsg.style.display = 'block';
-                    return;
-                }
-
-                products.forEach(p => {
-                    const rect = buildImportedItemRect({
-                        type: 'product',
-                        id: p.name,
-                        name: p.name,
-                        image: p.image || '',
-                        extra: p.has_children ? 'يحتوي على عناصر فرعية' : 'منتج فرعي',
-                        badge: 'منتج',
-                        badgeClass: 'badge-product',
-                        parentCategory: parentCategory
-                    });
-                    container.appendChild(rect);
-                });
-
-                subcats.forEach(s => {
-                    const rect = buildImportedItemRect({
-                        type: 'subcategory',
-                        id: s.name,
-                        name: s.name,
-                        image: s.image || '',
-                        extra: `السعر: ${formatBalance(s.price)}$ | ربح: ${s.profit_margin || 0}%`,
-                        badge: 'فئة',
-                        badgeClass: 'badge-subcategory',
-                        parentCategory: parentCategory,
-                        parentProduct: s.product
-                    });
-                    container.appendChild(rect);
-                });
-            } catch (e) {
-                console.error(e);
-                container.innerHTML = '<div style="text-align:center; color:#f87171; padding:30px; font-weight:700;">فشل التحميل!</div>';
-            }
-        }
-
-        function buildImportedItemRect(opts) {
-            const rect = document.createElement('div');
-            rect.className = 'imported-item-rect';
-
-            const thumbHTML = opts.image
-                ? `<img src="${opts.image}" class="item-thumb" onerror="this.outerHTML='<div class=\\'item-thumb-placeholder\\'>📁</div>'">`
-                : `<div class="item-thumb-placeholder">${opts.type === 'category' ? ICON_FOLDER : (opts.type === 'product' ? ICON_BOX : ICON_TAG)}</div>`;
-
-            rect.innerHTML = `
-                <div class="item-right">
-                    ${thumbHTML}
-                    <div class="item-info">
-                        <div class="item-name">${opts.name}</div>
-                        <div class="item-meta">
-                            <span class="item-type-badge ${opts.badgeClass}">${opts.badge}</span>
-                            ${opts.extra || ''}
-                        </div>
-                    </div>
-                </div>
-                <div class="imported-item-actions">
-                    <button class="imported-action-btn edit-btn" title="تعديل">${ICON_EDIT}</button>
-                    <button class="imported-action-btn delete-btn" title="حذف">${ICON_DELETE}</button>
-                </div>
-            `;
-
-            rect.querySelector('.item-right').onclick = () => {
-                if (opts.type === 'category') {
-                    editImportedState.path.push({
-                        type: 'category',
-                        id: opts.id,
-                        name: opts.name
-                    });
-                    loadImportedCategoryProducts(opts.id, opts.name);
-                } else if (opts.type === 'product') {
-                    editImportedState.path.push({
-                        type: 'product',
-                        id: opts.id,
-                        name: opts.name,
-                        parentCategory: opts.parentCategory
-                    });
-                    loadImportedProductChildren(opts.id, opts.name, opts.parentCategory);
-                } else if (opts.type === 'subcategory') {
-                    editImportedState.path.push({
-                        type: 'subcategory',
-                        id: opts.id,
-                        name: opts.name,
-                        parentCategory: opts.parentCategory,
-                        parentProduct: opts.parentProduct
-                    });
-                    loadImportedProductChildren(opts.id, opts.name, opts.parentCategory);
-                }
-            };
-
-            rect.querySelector('.edit-btn').onclick = (e) => {
-                e.stopPropagation();
-                openEditImportedItemModal(opts);
-            };
-
-            rect.querySelector('.delete-btn').onclick = (e) => {
-                e.stopPropagation();
-                openDeleteImportedItemModal(opts);
-            };
-
-            return rect;
-        }
-
-        let currentlyEditingImportedItem = null;
-
-        function openEditImportedItemModal(item) {
-            currentlyEditingImportedItem = item;
-
-            document.getElementById('editImportedNameInput').value = item.name;
-            document.getElementById('editImportedImageInput').value = '';
-
-            const profitGroup = document.getElementById('editImportedProfitGroup');
-            if (item.type === 'subcategory') {
-                profitGroup.style.display = 'flex';
-                fetch('/api/get_imported_items?category=' + encodeURIComponent(item.parentCategory || '') +
-                      '&product=' + encodeURIComponent(item.parentProduct || item.parentCategory || '') +
-                      '&name=' + encodeURIComponent(item.name))
-                    .then(r => r.json())
-                    .then(data => {
-                        const match = (data.subcategories || []).find(s => s.name === item.name);
-                        if (match) {
-                            document.getElementById('editImportedProfitInput').value = match.profit_margin || 0;
-                        } else {
-                            document.getElementById('editImportedProfitInput').value = 0;
-                        }
-                    })
-                    .catch(() => {
-                        document.getElementById('editImportedProfitInput').value = 0;
-                    });
-            } else {
-                profitGroup.style.display = 'none';
-            }
-
-            const preview = document.getElementById('editImportedImagePreview');
-            const previewImg = document.getElementById('editImportedImagePreviewImg');
-            if (item.image) {
-                previewImg.src = item.image;
-                preview.style.display = 'block';
-            } else {
-                preview.style.display = 'none';
-            }
-
-            openModal('editImportedItemModal');
-        }
-
-        async function saveEditImportedItem() {
-            if (!currentlyEditingImportedItem) return;
-
-            const newName = document.getElementById('editImportedNameInput').value.trim();
-            const newProfit = parseFloat(document.getElementById('editImportedProfitInput').value) || 0;
-            const fileInput = document.getElementById('editImportedImageInput');
-
-            if (!newName) {
-                alert('يرجى إدخال الاسم!');
-                return;
-            }
-
-            let imageData = '';
-            if (fileInput.files && fileInput.files[0]) {
-                imageData = await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(fileInput.files[0]);
-                });
-            }
-
-            const payload = {
-                type: currentlyEditingImportedItem.type,
-                old_name: currentlyEditingImportedItem.name,
-                new_name: newName,
-                category: currentlyEditingImportedItem.parentCategory || '',
-                product: currentlyEditingImportedItem.parentProduct || currentlyEditingImportedItem.parentCategory || '',
-                profit_margin: newProfit,
-                image: imageData
-            };
-
-            try {
-                const res = await fetch('/api/update_imported_item', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-
-                if (data.status === 'success') {
-                    alert('✅ تم حفظ التعديلات بنجاح!');
-                    closeModal('editImportedItemModal');
-                    refreshCurrentEditImportedLevel();
-                } else {
-                    alert('❌ ' + (data.message || 'فشل التعديل!'));
-                }
-            } catch (e) {
-                alert('فشل الاتصال بالخادم!');
-            }
-        }
-
-        let currentlyDeletingImportedItem = null;
-
-        function openDeleteImportedItemModal(item) {
-            currentlyDeletingImportedItem = item;
-
-            let msg = 'هل أنت متأكد من حذف ';
-            if (item.type === 'category') {
-                msg += `القسم الرئيسي «${item.name}» وكل ما يحتويه من منتجات وفئات؟`;
-            } else if (item.type === 'product') {
-                msg += `المنتج «${item.name}» وكل الفئات التابعة له؟`;
-            } else {
-                msg += `الفئة «${item.name}»؟`;
-            }
-
-            document.getElementById('deleteImportedItemMsg').innerText = msg;
-            openModal('deleteImportedItemModal');
-        }
-
-        async function confirmDeleteImportedItem() {
-            if (!currentlyDeletingImportedItem) return;
-
-            const payload = {
-                type: currentlyDeletingImportedItem.type,
-                name: currentlyDeletingImportedItem.name,
-                category: currentlyDeletingImportedItem.parentCategory || '',
-                product: currentlyDeletingImportedItem.parentProduct || currentlyDeletingImportedItem.parentCategory || ''
-            };
-
-            try {
-                const res = await fetch('/api/delete_imported_item', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-
-                if (data.status === 'success') {
-                    alert('🗑️ تم الحذف بنجاح!');
-                    closeModal('deleteImportedItemModal');
-                    refreshCurrentEditImportedLevel();
-                } else {
-                    alert('❌ ' + (data.message || 'فشل الحذف!'));
-                }
-            } catch (e) {
-                alert('فشل الاتصال بالخادم!');
-            }
-        }
-
-        function refreshCurrentEditImportedLevel() {
-            const path = editImportedState.path;
-            if (path.length === 0) {
-                loadImportedRoot();
-            } else {
-                navigateToNode(path[path.length - 1]);
-            }
-        }
-        // ==================== END EDIT IMPORTED ITEMS ====================
-
         loadCategories();
         fetchStatsAndRender();
         setInterval(fetchStatsAndRender, 30000);
@@ -11069,6 +9663,7 @@ Code   : -
 </body>
 </html>
 """
+
 
 # --------------------------------------------------
 # 4. السيرفر ومعالجة الطلبات
@@ -11113,7 +9708,6 @@ class WebAppHandler(BaseHTTPRequestHandler):
             save_json_file(ORDERS_FILE, ORDERS_DATA)
 
     def do_GET(self):
-        # First, check maintenance mode - but allow admin routes
         if not self.path.startswith("/admin") and not self.path.startswith("/api/maintenance") and MAINTENANCE_DATA.get("is_active"):
             self.send_response(503)
             self.send_header("Content-type", "text/html; charset=utf-8")
@@ -11198,7 +9792,6 @@ class WebAppHandler(BaseHTTPRequestHandler):
                     self.send_response(404)
                     self.end_headers()
             else:
-                # أيقونة افتراضية SVG
                 default_svg = '''<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
                     <rect width="512" height="512" rx="100" fill="#00897b"/>
                     <text x="50%" y="45%" fill="#fff" font-size="80" text-anchor="middle" dominant-baseline="middle" font-weight="bold" font-family="Arial">SYRIA</text>
@@ -11328,6 +9921,12 @@ self.addEventListener('fetch', event => {
             self.send_header("Content-type", "application/json; charset=utf-8")
             self.end_headers()
             self.wfile.write(json.dumps(SUBCATEGORY_GROUPS_DATA, ensure_ascii=False).encode("utf-8"))
+
+        elif self.path == "/api/get_auto_deposit_methods":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(json.dumps(AUTO_DEPOSIT_DATA, ensure_ascii=False).encode("utf-8"))
 
         elif self.path == "/api-docs":
             self.send_response(200)
@@ -11870,156 +10469,6 @@ self.addEventListener('fetch', event => {
                 self.end_headers()
                 self.wfile.write(json.dumps({"status": "error", "message": "المستخدم غير موجود"}).encode("utf-8"))
 
-        elif self.path == "/api/get_imported_categories":
-            # جلب كل الأقسام الرئيسية المستوردة (من API_IMPORTS_DATA)
-            result = []
-            seen_names = set()
-
-            for key, info in API_IMPORTS_DATA.items():
-                cat_name = info.get('category_name')
-                if not cat_name or cat_name in seen_names:
-                    continue
-                seen_names.add(cat_name)
-
-                # عد المنتجات والفئات في هذا القسم
-                products_count = len([p for p in PRODUCTS_DATA if p.get('category') == cat_name])
-                subcats_count = len([
-                    s for s in SUBCATEGORIES_DATA
-                    if s.get('product') in [p.get('name') for p in PRODUCTS_DATA if p.get('category') == cat_name]
-                       or s.get('api_import_key') == key
-                ])
-
-                result.append({
-                    "name": cat_name,
-                    "image": CATEGORIES_DATA.get(cat_name, ''),
-                    "original_name": info.get('original_category_name', ''),
-                    "provider_name": info.get('provider_name', ''),
-                    "products_count": products_count,
-                    "subcategories_count": subcats_count,
-                    "import_key": key
-                })
-
-            self.send_response(200)
-            self.send_header("Content-type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps(result, ensure_ascii=False).encode("utf-8"))
-
-        elif self.path.startswith("/api/get_imported_items"):
-            query = urllib.parse.urlparse(self.path).query
-            params = urllib.parse.parse_qs(query)
-            category = params.get('category', [''])[0]
-            product = params.get('product', [''])[0]
-
-            products_result = []
-            subcats_result = []
-
-            if category and not product:
-                # نعرض منتجات القسم الرئيسي + الفئات التي لا تنتمي لمنتج (أو الفئات الجذرية)
-                all_products_in_cat = [p for p in PRODUCTS_DATA if p.get('category') == category]
-
-                # نتحقق إن كان المنتج يحتوي على أبناء (منتجات أو فئات)
-                for p in all_products_in_cat:
-                    p_name = p.get('name')
-                    has_children = any(
-                        sub.get('product') == p_name
-                        for sub in SUBCATEGORIES_DATA
-                    ) or any(
-                        prod.get('parent_product') == p_name
-                        for prod in PRODUCTS_DATA
-                    )
-                    products_result.append({
-                        "name": p_name,
-                        "image": p.get('image', ''),
-                        "has_children": has_children
-                    })
-
-                # الفئات التي تنتمي مباشرة للقسم (بدون منتج أب مسجل)
-                # نعتبر الفئات التي لها api_import_key مرتبط بهذا القسم فقط إذا لم يكن لها منتج أب
-                subcats_result = []  # لن نعرضها في الجذر لتجنب الالتباس
-
-            elif category and product:
-                # نعرض منتجات وأبناء المنتج المحدد
-                all_products_in_cat = [p for p in PRODUCTS_DATA if p.get('category') == category]
-
-                # 1) منتجات فرعية: أي منتج اسمه غير product و parent_product == product
-                #    لكن نظامنا الحالي يخزن المنتجات في PRODUCTS_DATA بدون parent_product،
-                #    لذلك نعتمد على SUBCATEGORIES_DATA: أي subcategory product == product
-                subcats_result = [
-                    s for s in SUBCATEGORIES_DATA
-                    if s.get('product') == product
-                ]
-
-                # 2) منتجات فرعية: نبحث عن منتجات لها فئات product = product (أي المنتج الأب = product)
-                #    لكن لا نملك علاقة أب-ابن للمنتجات حالياً في المخطط، لذا سنستخدم
-                #    subcategories المنتمية للمنتج كـ "أبناء"
-                #    أما المنتجات الفرعية داخل منتج، فسنكتشفها من خلال انتماء فئاتها لنفس المنتج.
-
-                # نبني قائمة أبناء:
-                #   - إذا كان للمنتج فئات (subcats) → نعرضها
-                #   - إذا كان هناك منتجات أخرى لها فئات ضمن نفس القسم وتنتمي لنفس الأب (لا يوجد حالياً)
-                products_result = []  # في المستوى الحالي لا نملك علاقة أب-ابن للمنتجات
-
-                # نبحث عن منتجات "أبناء" من خلال حقل parent_product إن وُجد
-                for p in all_products_in_cat:
-                    if p.get('parent_product') == product:
-                        has_children = any(
-                            sub.get('product') == p.get('name')
-                            for sub in SUBCATEGORIES_DATA
-                        )
-                        products_result.append({
-                            "name": p.get('name'),
-                            "image": p.get('image', ''),
-                            "has_children": has_children
-                        })
-
-            # تنظيف الفئات من أي حقول غير قابلة للتسلسل
-            clean_subcats = []
-            for s in subcats_result:
-                clean_subcats.append({
-                    "name": s.get('name'),
-                    "product": s.get('product'),
-                    "image": s.get('image', ''),
-                    "price": float(s.get('price', 0)),
-                    "base_price": float(s.get('base_price', 0)),
-                    "profit_margin": float(s.get('profit_margin', 0)),
-                    "api_product_id": s.get('api_product_id', ''),
-                    "provider_name": s.get('provider_name', '')
-                })
-
-            self.send_response(200)
-            self.send_header("Content-type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps({
-                "products": products_result,
-                "subcategories": clean_subcats
-            }, ensure_ascii=False).encode("utf-8"))
-
-        elif self.path == "/api/get_auto_deposit_methods":
-            self.send_response(200)
-            self.send_header("Content-type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps(AUTO_DEPOSIT_METHODS_DATA, ensure_ascii=False).encode("utf-8"))
-
-        elif self.path == "/api/get_auto_deposit_public":
-            # نسخة عامة للمستخدمين (بدون التوكن)
-            public_methods = []
-            for m in AUTO_DEPOSIT_METHODS_DATA.values():
-                if m.get('enabled'):
-                    public_methods.append({
-                        "id": m.get('id'),
-                        "name": m.get('name'),
-                        "deposit_title": m.get('deposit_title', ''),
-                        "description": m.get('description', ''),
-                        "image": m.get('image', ''),
-                        "exchange_rate": m.get('exchange_rate', 1),
-                        "currency_type": m.get('currency_type', 'USD'),
-                        "is_auto": True
-                    })
-            self.send_response(200)
-            self.send_header("Content-type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps(public_methods, ensure_ascii=False).encode("utf-8"))
-
         else:
             self.send_response(200)
             self.send_header("Content-type", "text/html; charset=utf-8")
@@ -12055,56 +10504,45 @@ self.addEventListener('fetch', event => {
             self.end_headers()
             self.wfile.write(json.dumps({"status": "success"}).encode("utf-8"))
 
-        elif self.path == "/api/toggle_auto_deposit":
+        elif self.path == "/api/save_auto_deposit_method":
             method_id = data.get('id')
-            enabled = bool(data.get('enabled', False))
-
-            if method_id in AUTO_DEPOSIT_METHODS_DATA:
-                AUTO_DEPOSIT_METHODS_DATA[method_id]['enabled'] = enabled
-                save_json_file(AUTO_DEPOSIT_METHODS_FILE, AUTO_DEPOSIT_METHODS_DATA)
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "success"}).encode("utf-8"))
-            else:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "الطريقة غير موجودة"}).encode("utf-8"))
-
-        elif self.path == "/api/update_auto_deposit":
-            method_id = data.get('id')
-            if method_id not in AUTO_DEPOSIT_METHODS_DATA:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "الطريقة غير موجودة"}).encode("utf-8"))
-                return
-
-            m = AUTO_DEPOSIT_METHODS_DATA[method_id]
-            m['api_token'] = data.get('api_token', m.get('api_token', ''))
-            m['name'] = data.get('name', m.get('name', ''))
-            m['exchange_rate'] = float(data.get('exchange_rate', m.get('exchange_rate', 1)))
-            m['deposit_title'] = data.get('deposit_title', m.get('deposit_title', ''))
-            m['description'] = data.get('description', m.get('description', ''))
-
-            if data.get('image'):
-                m['image'] = data.get('image')
-
-            save_json_file(AUTO_DEPOSIT_METHODS_FILE, AUTO_DEPOSIT_METHODS_DATA)
-
+            updated_method = {
+                "id": method_id,
+                "name": data.get('display_name', data.get('name', '')),
+                "enabled": data.get('enabled', True),
+                "api_token": data.get('api_token', ''),
+                "display_name": data.get('display_name', ''),
+                "exchange_rate": float(data.get('exchange_rate', 1)),
+                "address": data.get('address', ''),
+                "image": data.get('image', ''),
+                "description": data.get('description', ''),
+                "coin_id": data.get('coin_id', 'USD')
+            }
+            
+            found = False
+            for i, m in enumerate(AUTO_DEPOSIT_DATA):
+                if m.get('id') == method_id:
+                    AUTO_DEPOSIT_DATA[i] = updated_method
+                    found = True
+                    break
+            
+            if not found:
+                AUTO_DEPOSIT_DATA.append(updated_method)
+            
+            save_json_file(AUTO_DEPOSIT_FILE, AUTO_DEPOSIT_DATA)
+            
             self.send_response(200)
             self.send_header("Content-type", "application/json; charset=utf-8")
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "success"}).encode("utf-8"))
+            self.wfile.write(json.dumps({"status": "success"}, ensure_ascii=False).encode("utf-8"))
 
-        elif self.path == "/api/verify_shamcash_deposit":
-            email = data.get('email', '').strip()
-            method_id = data.get('method_id', '').strip()
-            amount_usd = float(data.get('amount', 0))
-            transaction_id = str(data.get('transaction_id', '')).strip()
+        elif self.path == "/api/verify_auto_deposit":
+            email = data.get('email')
+            method_id = data.get('method_id')
+            amount = float(data.get('amount', 0))
+            tx_id = data.get('tx_id', '').strip()
 
-            if not email or not method_id or amount_usd <= 0 or not transaction_id:
+            if not email or not tx_id:
                 self.send_response(200)
                 self.send_header("Content-type", "application/json; charset=utf-8")
                 self.end_headers()
@@ -12118,111 +10556,129 @@ self.addEventListener('fetch', event => {
                 self.wfile.write(json.dumps({"status": "error", "message": "المستخدم غير موجود!"}, ensure_ascii=False).encode("utf-8"))
                 return
 
-            if method_id not in AUTO_DEPOSIT_METHODS_DATA:
+            # التحقق من أن رقم العملية لم يستخدم من قبل
+            if tx_id in SHAMCASH_TX_DATA:
                 self.send_response(200)
                 self.send_header("Content-type", "application/json; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "طريقة الإيداع غير موجودة!"}, ensure_ascii=False).encode("utf-8"))
+                self.wfile.write(json.dumps({"status": "error", "message": "رقم العملية مستخدم من قبل!"}, ensure_ascii=False).encode("utf-8"))
                 return
 
-            method = AUTO_DEPOSIT_METHODS_DATA[method_id]
-
-            if not method.get('enabled'):
+            method = next((m for m in AUTO_DEPOSIT_DATA if m.get('id') == method_id), None)
+            if not method or not method.get('enabled') or not method.get('api_token'):
                 self.send_response(200)
                 self.send_header("Content-type", "application/json; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "هذه الطريقة غير مُفعّلة حالياً!"}, ensure_ascii=False).encode("utf-8"))
+                self.wfile.write(json.dumps({"status": "error", "message": "طريقة الإيداع غير مفعلة أو غير مهيأة!"}, ensure_ascii=False).encode("utf-8"))
                 return
 
-            # التحقق من أن رقم العملية لم يُستخدم سابقاً
-            if transaction_id in USED_TRANSACTIONS_DATA:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "رقم العملية مستخدم مسبقاً!"}, ensure_ascii=False).encode("utf-8"))
-                return
+            api_token = method.get('api_token')
+            coin_id = method.get('coin_id', 'USD')
 
-            # التحقق من ShamCash API
-            api_token = method.get('api_token', '')
-            exchange_rate = float(method.get('exchange_rate', 1))
-            currency_type = method.get('currency_type', 'USD')
+            try:
+                accounts_res = shamcash_get_accounts(api_token)
+                if accounts_res.get('status') != 'success' or not accounts_res.get('data'):
+                    self.send_response(200)
+                    self.send_header("Content-type", "application/json; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "error", "message": "فشل الاتصال بحساب شام كاش!"}, ensure_ascii=False).encode("utf-8"))
+                    return
 
-            if not api_token:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "لم يتم ضبط توكن API لهذه الطريقة!"}, ensure_ascii=False).encode("utf-8"))
-                return
+                accounts = accounts_res.get('data', [])
+                account_id = None
+                for acc in accounts:
+                    if acc.get('coin_id') == coin_id or acc.get('coin') == coin_id:
+                        account_id = acc.get('id')
+                        break
+                
+                if not account_id and accounts:
+                    account_id = accounts[0].get('id')
 
-            verify_result = verify_shamcash_transaction(api_token, transaction_id, amount_usd, currency_type, exchange_rate)
+                if not account_id:
+                    self.send_response(200)
+                    self.send_header("Content-type", "application/json; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "error", "message": "لا يوجد حساب مرتبط بهذه العملة!"}, ensure_ascii=False).encode("utf-8"))
+                    return
 
-            if not verify_result.get('success'):
+                tx_res = shamcash_get_transactions(api_token, account_id, transaction_ids=[tx_id], coin_id=coin_id, limit=50)
+
+                if tx_res.get('status') != 'success':
+                    self.send_response(200)
+                    self.send_header("Content-type", "application/json; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "error", "message": "فشل جلب المعاملات!"}, ensure_ascii=False).encode("utf-8"))
+                    return
+
+                transactions = tx_res.get('data', {}).get('transactions', [])
+                matched_tx = None
+                for tx in transactions:
+                    tx_amount = float(tx.get('amount', 0))
+                    tx_currency = tx.get('coin_id', tx.get('coin', ''))
+                    
+                    if str(tx.get('id', '')) == str(tx_id) or str(tx.get('transaction_id', '')) == str(tx_id):
+                        if abs(tx_amount - amount) < 0.01:
+                            if tx_currency == coin_id or not tx_currency:
+                                matched_tx = tx
+                                break
+
+                if not matched_tx:
+                    self.send_response(200)
+                    self.send_header("Content-type", "application/json; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "error", "message": "العملية غير موجودة، تأكد من رقم العملية والمبلغ والعملة."}, ensure_ascii=False).encode("utf-8"))
+                    return
+
+                SHAMCASH_TX_DATA[tx_id] = {
+                    "email": email,
+                    "method_id": method_id,
+                    "amount": amount,
+                    "coin_id": coin_id,
+                    "verified_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "tx_details": matched_tx
+                }
+                save_json_file(SHAMCASH_TX_FILE, SHAMCASH_TX_DATA)
+
+                exchange_rate = float(method.get('exchange_rate', 1))
+                dollar_amount = round(amount / exchange_rate, 3)
+                user = USERS_DATA[email]
+                old_balance = round(float(user.get('balance', 0)), 3)
+                new_balance = round(old_balance + dollar_amount, 3)
+                user['balance'] = new_balance
+                save_json_file(USERS_FILE, USERS_DATA)
+
+                send_telegram_auto_deposit_notification(
+                    method_name=method.get('display_name', method.get('name', '')),
+                    amount=amount,
+                    tx_id=tx_id,
+                    email=email,
+                    user_balance=old_balance,
+                    new_balance=new_balance,
+                    tx_details=matched_tx
+                )
+
+                add_user_notification(
+                    email=email,
+                    order_uuid=f"auto_deposit_{tx_id}",
+                    message=f"تم إيداع {formatBalance(dollar_amount)}$ تلقائياً بنجاح",
+                    status="success"
+                )
+
                 self.send_response(200)
                 self.send_header("Content-type", "application/json; charset=utf-8")
                 self.end_headers()
                 self.wfile.write(json.dumps({
-                    "status": "error",
-                    "message": verify_result.get('error', 'فشل التحقق من العملية'),
-                    "code": verify_result.get('code', 'UNKNOWN')
+                    "status": "success",
+                    "new_balance": new_balance,
+                    "user_id": user.get('id', 1001)
                 }, ensure_ascii=False).encode("utf-8"))
-                return
 
-            # ✅ العملية صحيحة
-            tx_details = verify_result.get('transaction', {})
-
-            # إضافة الرصيد
-            current_bal = round(float(USERS_DATA[email].get('balance', 0)), 3)
-            new_bal = round(current_bal + amount_usd, 3)
-            USERS_DATA[email]['balance'] = new_bal
-            save_json_file(USERS_FILE, USERS_DATA)
-
-            # تسجيل رقم العملية كمستخدم
-            USED_TRANSACTIONS_DATA.append(transaction_id)
-            save_json_file(USED_TRANSACTIONS_FILE, USED_TRANSACTIONS_DATA)
-
-            # تسجيل الإيداع في سجل الإيداعات
-            now = datetime.now()
-            DEPOSIT_REQUESTS_DATA.append({
-                "id": len(DEPOSIT_REQUESTS_DATA) + 1,
-                "email": email,
-                "method_name": method.get('name', 'شام كاش'),
-                "amount": amount_usd,
-                "local_amount": round(amount_usd * exchange_rate, 3),
-                "exchange_rate": exchange_rate,
-                "tx_id": transaction_id,
-                "receipt_image": "",
-                "status": "مقبول",
-                "date": now.strftime("%Y-%m-%d %H:%M"),
-                "auto_verified": True
-            })
-            save_json_file(DEPOSIT_REQUESTS_FILE, DEPOSIT_REQUESTS_DATA)
-
-            # إشعار المستخدم
-            add_user_notification(
-                email=email,
-                order_uuid=f"auto_deposit_{transaction_id}",
-                message=f"تم إيداع رصيد تلقائي بمبلغ {formatBalance(amount_usd)} $",
-                status="success"
-            )
-
-            # إشعار تيليجرام
-            send_telegram_auto_deposit_notification(
-                email=email,
-                method_name=method.get('name', 'شام كاش'),
-                amount_usd=amount_usd,
-                tx_id=transaction_id,
-                new_balance=new_bal,
-                tx_details=tx_details
-            )
-
-            self.send_response(200)
-            self.send_header("Content-type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps({
-                "status": "success",
-                "new_balance": new_bal,
-                "message": "تمت عملية تطابق المبلغ بنجاح"
-            }, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                logging.error(f"خطأ في التحقق التلقائي: {e}")
+                self.send_response(200)
+                self.send_header("Content-type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "message": f"فشل الاتصال بخدمة شام كاش: {str(e)}"}, ensure_ascii=False).encode("utf-8"))
 
         elif self.path == "/api/register":
             email = data.get('email', '').strip()
@@ -12378,7 +10834,6 @@ self.addEventListener('fetch', event => {
             APPEARANCE_DATA['deposit_card_size'] = int(data.get('deposit_card_size', 100))
             APPEARANCE_DATA['category_card_size'] = int(data.get('category_card_size', 100))
             
-            # الوضع الداكن
             APPEARANCE_DATA['dark_bg_color'] = data.get('dark_bg_color', '#050508')
             APPEARANCE_DATA['dark_card_bg'] = data.get('dark_card_bg', '#121212')
             APPEARANCE_DATA['dark_border_color'] = data.get('dark_border_color', '#27272a')
@@ -12387,7 +10842,6 @@ self.addEventListener('fetch', event => {
             APPEARANCE_DATA['dark_sidebar_bg'] = data.get('dark_sidebar_bg', '#09090f')
             APPEARANCE_DATA['dark_input_bg'] = data.get('dark_input_bg', '#000000')
             
-            # الوضع الفاتح
             APPEARANCE_DATA['light_bg_color'] = data.get('light_bg_color', '#f4f4f5')
             APPEARANCE_DATA['light_card_bg'] = data.get('light_card_bg', '#ffffff')
             APPEARANCE_DATA['light_border_color'] = data.get('light_border_color', '#e4e4e7')
@@ -12397,7 +10851,6 @@ self.addEventListener('fetch', event => {
             APPEARANCE_DATA['light_input_bg'] = data.get('light_input_bg', '#f4f4f5')
             APPEARANCE_DATA['light_accent_color'] = data.get('light_accent_color', '#0284c7')
             
-            # PWA
             if data.get('pwa_name'): APPEARANCE_DATA['pwa_name'] = data.get('pwa_name')
             if data.get('pwa_short_name'): APPEARANCE_DATA['pwa_short_name'] = data.get('pwa_short_name')
             if data.get('pwa_theme_color'): APPEARANCE_DATA['pwa_theme_color'] = data.get('pwa_theme_color')
@@ -12744,163 +11197,91 @@ self.addEventListener('fetch', event => {
                 original_name = data.get('original_category_name')
                 profit_margin = float(data.get('profit_margin', 0))
                 image = data.get('image', '')
-
+                
                 if not url.endswith('/'):
                     url += '/'
-
-                # 1) إنشاء القسم الرئيسي
+                
                 CATEGORIES_DATA[category_name] = image
                 save_json_file(CATEGORIES_FILE, CATEGORIES_DATA)
-
-                # 2) جلب كل المنتجات من المزود لبناء خريطة الأسعار
+                
+                content_url = f"{url}client/api/content/{category_id}"
+                content_data = make_api_request(content_url, token, timeout=20)
+                
+                imported_products = []
+                imported_subcategories = []
+                
+                if content_data.get('status') == 'OK' and content_data.get('data'):
+                    data_section = content_data.get('data', {})
+                    
+                    products = data_section.get('products', [])
+                    if isinstance(products, list):
+                        for prod in products:
+                            prod_name = prod.get('name', '')
+                            prod_image = prod.get('category_img', '') or prod.get('image', '')
+                            
+                            if prod_image and not prod_image.startswith('http'):
+                                prod_image = url.rstrip('/') + '/' + prod_image.lstrip('/')
+                            
+                            if prod_name:
+                                existing = [p for p in PRODUCTS_DATA if p.get('name') == prod_name and p.get('category') == category_name]
+                                if not existing:
+                                    PRODUCTS_DATA.append({
+                                        "name": prod_name,
+                                        "category": category_name,
+                                        "image": prod_image
+                                    })
+                                    imported_products.append(prod_name)
+                    
+                    subcats = data_section.get('categories', [])
+                    if isinstance(subcats, list):
+                        for subcat in subcats:
+                            subcat_id = subcat.get('id')
+                            subcat_name = subcat.get('name', '')
+                            subcat_image = subcat.get('image', '')
+                            
+                            if subcat_image and not subcat_image.startswith('http'):
+                                subcat_image = url.rstrip('/') + '/' + subcat_image.lstrip('/')
+                            
+                            if subcat_name:
+                                target_product = imported_products[0] if imported_products else category_name
+                                
+                                existing = [s for s in SUBCATEGORIES_DATA if s.get('name') == subcat_name and s.get('product') == target_product]
+                                if not existing:
+                                    new_sub = {
+                                        "name": subcat_name,
+                                        "price": 0,
+                                        "base_price": 0,
+                                        "product": target_product,
+                                        "provider_name": provider_name,
+                                        "api_product_id": str(subcat_id),
+                                        "description": f"فئة مستوردة من {provider_name}",
+                                        "image": subcat_image,
+                                        "is_counter": False,
+                                        "imported_from_api": True,
+                                        "api_import_key": f"{provider_name}_{original_name}",
+                                        "profit_margin": profit_margin
+                                    }
+                                    SUBCATEGORIES_DATA.append(new_sub)
+                                    imported_subcategories.append(subcat_name)
+                
                 products_url = f"{url}client/api/products"
-                try:
-                    api_products = make_api_request(products_url, token, timeout=20)
-                    if not isinstance(api_products, list):
-                        api_products = []
-                except Exception:
-                    api_products = []
-
-                price_map = {}
-                for ap in api_products:
-                    if isinstance(ap, dict):
-                        price_map[str(ap.get('id'))] = ap
-
-                # 3) دالة تكررية لاستيراد قسم (رئيسي أو فرعي) بشكل متداخل
-                def import_node(node_id, parent_product_name, level=0):
-                    """
-                    تستورد محتوى node_id وتُرجع عدد العناصر المستوردة.
-                    - إذا كان المنتج له منتجات فرعية (children)، كل واحد يصبح Product جديد
-                    - الفئات (categories) تصبح SubCategory تابعة للمنتج الأب
-                    """
-                    imported_p = 0
-                    imported_s = 0
-
-                    content_url = f"{url}client/api/content/{node_id}"
-                    try:
-                        content_data = make_api_request(content_url, token, timeout=20)
-                    except Exception as e:
-                        logging.warning(f"فشل جلب content/{node_id}: {e}")
-                        return 0, 0
-
-                    if not (isinstance(content_data, dict) and content_data.get('status') == 'OK'):
-                        return 0, 0
-
-                    data_section = content_data.get('data', {}) or {}
-                    products = data_section.get('products', []) or []
-                    subcats = data_section.get('categories', []) or []
-
-                    # 3-أ) استيراد المنتجات الفرعية
-                    for prod in products:
-                        if not isinstance(prod, dict):
-                            continue
-                        prod_name = prod.get('name', '').strip()
-                        prod_id = prod.get('id')
-                        if not prod_name:
-                            continue
-
-                        prod_image = prod.get('category_img', '') or prod.get('image', '')
-                        if prod_image and not str(prod_image).startswith('http') and not str(prod_image).startswith('data:'):
-                            prod_image = url.rstrip('/') + '/' + str(prod_image).lstrip('/')
-
-                        # هل المنتج موجود مسبقاً؟
-                        existing = next(
-                            (p for p in PRODUCTS_DATA
-                             if p.get('name') == prod_name and p.get('category') == category_name),
-                            None
-                        )
-                        if not existing:
-                            PRODUCTS_DATA.append({
-                                "name": prod_name,
-                                "category": category_name,
-                                "image": prod_image,
-                                "parent_product": parent_product_name if parent_product_name != category_name else None
-                            })
-                            imported_p += 1
-
-                        # ✅ استدعاء تكراري: نستورد محتوى هذا المنتج الفرعي (قد يحتوي على منتجات أعمق أو فئات)
-                        if prod_id is not None:
-                            sub_p, sub_s = import_node(prod_id, prod_name, level + 1)
-                            imported_p += sub_p
-                            imported_s += sub_s
-
-                    # 3-ب) استيراد الفئات (SubCategories) - نضعها تحت parent_product_name
-                    for subcat in subcats:
-                        if not isinstance(subcat, dict):
-                            continue
-                        subcat_id = subcat.get('id')
-                        subcat_name = subcat.get('name', '').strip()
-                        if not subcat_name:
-                            continue
-
-                        subcat_image = subcat.get('image', '')
-                        if subcat_image and not str(subcat_image).startswith('http') and not str(subcat_image).startswith('data:'):
-                            subcat_image = url.rstrip('/') + '/' + str(subcat_image).lstrip('/')
-
-                        # إذا كان للفئة منتجات فرعية (نادرة)، نعالجها كمنتج جديد
-                        # وإلا فهي فئة عادية
-                        has_children = bool(subcat.get('children')) or False
-
-                        # جلب السعر من price_map
-                        base_price = 0.0
-                        ap = price_map.get(str(subcat_id))
-                        if ap:
-                            try:
-                                base_price = float(ap.get('base_price', ap.get('price', 0)))
-                            except Exception:
-                                base_price = 0.0
-
-                        final_price = round(base_price * (1 + (profit_margin / 100.0)), 3)
-
-                        target_product = parent_product_name or category_name
-
-                        # تجنب التكرار
-                        exists = next(
-                            (s for s in SUBCATEGORIES_DATA
-                             if s.get('name') == subcat_name
-                             and s.get('product') == target_product
-                             and str(s.get('api_product_id', '')) == str(subcat_id)),
-                            None
-                        )
-                        if exists:
-                            # تحديث السعر
-                            exists['base_price'] = base_price
-                            exists['price'] = final_price
-                            exists['profit_margin'] = profit_margin
-                            continue
-
-                        new_sub = {
-                            "name": subcat_name,
-                            "price": final_price,
-                            "base_price": base_price,
-                            "product": target_product,
-                            "provider_name": provider_name,
-                            "api_product_id": str(subcat_id),
-                            "description": f"فئة مستوردة من {provider_name}",
-                            "image": subcat_image,
-                            "is_counter": False,
-                            "imported_from_api": True,
-                            "api_import_key": f"{provider_name}_{original_name}",
-                            "profit_margin": profit_margin
-                        }
-                        SUBCATEGORIES_DATA.append(new_sub)
-                        imported_s += 1
-
-                        # ✅ إذا كان للفئة منتجات فرعية داخلية، نستوردها كـ منتج جديد + فئاته
-                        if subcat_id is not None:
-                            sub_p, sub_s = import_node(subcat_id, subcat_name, level + 1)
-                            imported_p += sub_p
-                            imported_s += sub_s
-
-                    return imported_p, imported_s
-
-                # 4) بدء الاستيراد من القسم الرئيسي
-                total_p, total_s = import_node(category_id, category_name, level=0)
-
-                # 5) حفظ كل الملفات
+                api_products = make_api_request(products_url, token, timeout=20)
+                
+                if isinstance(api_products, list):
+                    for subcat in SUBCATEGORIES_DATA:
+                        if subcat.get('api_import_key') == f"{provider_name}_{original_name}":
+                            api_id = str(subcat.get('api_product_id', ''))
+                            for ap in api_products:
+                                if str(ap.get('id')) == api_id:
+                                    base_price = float(ap.get('base_price', ap.get('price', 0)))
+                                    new_price = round(base_price * (1 + (profit_margin / 100.0)), 3)
+                                    subcat['base_price'] = base_price
+                                    subcat['price'] = new_price
+                                    break
+                
                 save_json_file(PRODUCTS_FILE, PRODUCTS_DATA)
                 save_json_file(SUBCATEGORIES_FILE, SUBCATEGORIES_DATA)
-
+                
                 import_key = f"{provider_name}_{original_name}"
                 API_IMPORTS_DATA[import_key] = {
                     "provider_name": provider_name,
@@ -12910,206 +11291,27 @@ self.addEventListener('fetch', event => {
                     "profit_margin": profit_margin,
                     "imported_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "last_price_check": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "products_count": total_p,
-                    "subcategories_count": total_s
+                    "products_count": len(imported_products),
+                    "subcategories_count": len(imported_subcategories)
                 }
                 save_json_file(API_IMPORTS_FILE, API_IMPORTS_DATA)
-
+                
                 self.send_response(200)
                 self.send_header("Content-type", "application/json; charset=utf-8")
                 self.end_headers()
                 self.wfile.write(json.dumps({
                     "status": "success",
                     "message": "تم الاستيراد بنجاح",
-                    "products_count": total_p,
-                    "subcategories_count": total_s
+                    "products_count": len(imported_products),
+                    "subcategories_count": len(imported_subcategories)
                 }, ensure_ascii=False).encode("utf-8"))
-
+                
             except Exception as e:
                 logging.error(f"خطأ في استيراد القسم من API: {e}")
                 self.send_response(200)
                 self.send_header("Content-type", "application/json; charset=utf-8")
                 self.end_headers()
                 self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode("utf-8"))
-
-        elif self.path == "/api/update_imported_item":
-            item_type = data.get('type')
-            old_name = data.get('old_name', '').strip()
-            new_name = data.get('new_name', '').strip()
-            category = data.get('category', '').strip()
-            product = data.get('product', '').strip()
-            profit_margin = float(data.get('profit_margin', 0))
-            image = data.get('image', '')
-
-            if not old_name or not new_name:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "بيانات غير مكتملة!"}, ensure_ascii=False).encode("utf-8"))
-                return
-
-            updated = False
-
-            if item_type == 'category':
-                # تعديل القسم الرئيسي
-                # 1) تغيير الاسم في CATEGORIES_DATA
-                if old_name in CATEGORIES_DATA:
-                    img_val = image if image else CATEGORIES_DATA[old_name]
-                    del CATEGORIES_DATA[old_name]
-                    CATEGORIES_DATA[new_name] = img_val
-                    save_json_file(CATEGORIES_FILE, CATEGORIES_DATA)
-
-                # 2) تحديث PRODUCTS_DATA
-                for p in PRODUCTS_DATA:
-                    if p.get('category') == old_name:
-                        p['category'] = new_name
-                        if image:
-                            p['image'] = image
-
-                # 3) تحديث API_IMPORTS_DATA
-                for key, info in API_IMPORTS_DATA.items():
-                    if info.get('category_name') == old_name:
-                        info['category_name'] = new_name
-
-                save_json_file(PRODUCTS_FILE, PRODUCTS_DATA)
-                save_json_file(API_IMPORTS_FILE, API_IMPORTS_DATA)
-                updated = True
-
-            elif item_type == 'product':
-                # تعديل منتج
-                for p in PRODUCTS_DATA:
-                    if p.get('name') == old_name and p.get('category') == category:
-                        p['name'] = new_name
-                        if image:
-                            p['image'] = image
-                        updated = True
-                        break
-
-                # تحديث الفئات المرتبطة
-                for s in SUBCATEGORIES_DATA:
-                    if s.get('product') == old_name:
-                        s['product'] = new_name
-
-                save_json_file(PRODUCTS_FILE, PRODUCTS_DATA)
-                save_json_file(SUBCATEGORIES_FILE, SUBCATEGORIES_DATA)
-
-            elif item_type == 'subcategory':
-                # تعديل فئة
-                for s in SUBCATEGORIES_DATA:
-                    if s.get('name') == old_name and s.get('product') == product:
-                        s['name'] = new_name
-                        if image:
-                            s['image'] = image
-                        if s.get('api_product_id'):
-                            # إعادة حساب السعر بناءً على نسبة الربح الجديدة
-                            base_price = float(s.get('base_price', 0))
-                            new_price = round(base_price * (1 + (profit_margin / 100.0)), 3)
-                            s['price'] = new_price
-                            s['profit_margin'] = profit_margin
-                            if s.get('is_counter'):
-                                s['counter_min_price'] = new_price
-                        updated = True
-                        break
-
-                save_json_file(SUBCATEGORIES_FILE, SUBCATEGORIES_DATA)
-
-            if updated:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "success"}, ensure_ascii=False).encode("utf-8"))
-            else:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "لم يتم العثور على العنصر!"}, ensure_ascii=False).encode("utf-8"))
-
-        elif self.path == "/api/delete_imported_item":
-            item_type = data.get('type')
-            name = data.get('name', '').strip()
-            category = data.get('category', '').strip()
-            product = data.get('product', '').strip()
-
-            deleted = False
-
-            if item_type == 'category':
-                # حذف قسم كامل: القسم + منتجاته + فئاته + مجموعاته + سجل الاستيراد
-                if name in CATEGORIES_DATA:
-                    del CATEGORIES_DATA[name]
-                    save_json_file(CATEGORIES_FILE, CATEGORIES_DATA)
-
-                # حذف منتجات القسم
-                PRODUCTS_DATA[:] = [p for p in PRODUCTS_DATA if p.get('category') != name]
-
-                # حذف الفئات التي تنتمي لمنتجات هذا القسم
-                product_names = [p.get('name') for p in PRODUCTS_DATA if p.get('category') == name]
-                # نأخذ أيضاً أسماء المنتجات المحذوفة من قبل الحذف
-                # لإصلاح ذلك، نحذف أولاً الفئات المرتبطة بأي منتج كان في هذا القسم
-                # (نستخدم API_IMPORTS_DATA لمعرفة أسماء المنتجات المرتبطة)
-                related_import_keys = [
-                    k for k, v in API_IMPORTS_DATA.items()
-                    if v.get('category_name') == name
-                ]
-                SUBCATEGORIES_DATA[:] = [
-                    s for s in SUBCATEGORIES_DATA
-                    if not (
-                        s.get('product') in product_names
-                        or s.get('api_import_key') in related_import_keys
-                    )
-                ]
-
-                # حذف مجموعات هذا القسم
-                if name in SUBCATEGORY_GROUPS_DATA:
-                    del SUBCATEGORY_GROUPS_DATA[name]
-
-                # حذف سجل الاستيراد
-                for k in list(API_IMPORTS_DATA.keys()):
-                    if API_IMPORTS_DATA[k].get('category_name') == name:
-                        del API_IMPORTS_DATA[k]
-
-                save_json_file(PRODUCTS_FILE, PRODUCTS_DATA)
-                save_json_file(SUBCATEGORIES_FILE, SUBCATEGORIES_DATA)
-                save_json_file(SUBCATEGORY_GROUPS_FILE, SUBCATEGORY_GROUPS_DATA)
-                save_json_file(API_IMPORTS_FILE, API_IMPORTS_DATA)
-                deleted = True
-
-            elif item_type == 'product':
-                # حذف منتج + فئاته
-                PRODUCTS_DATA[:] = [
-                    p for p in PRODUCTS_DATA
-                    if not (p.get('name') == name and p.get('category') == category)
-                ]
-                SUBCATEGORIES_DATA[:] = [s for s in SUBCATEGORIES_DATA if s.get('product') != name]
-
-                if name in SUBCATEGORY_GROUPS_DATA:
-                    del SUBCATEGORY_GROUPS_DATA[name]
-
-                save_json_file(PRODUCTS_FILE, PRODUCTS_DATA)
-                save_json_file(SUBCATEGORIES_FILE, SUBCATEGORIES_DATA)
-                save_json_file(SUBCATEGORY_GROUPS_FILE, SUBCATEGORY_GROUPS_DATA)
-                deleted = True
-
-            elif item_type == 'subcategory':
-                # حذف فئة واحدة
-                before = len(SUBCATEGORIES_DATA)
-                SUBCATEGORIES_DATA[:] = [
-                    s for s in SUBCATEGORIES_DATA
-                    if not (s.get('name') == name and s.get('product') == product)
-                ]
-                if len(SUBCATEGORIES_DATA) < before:
-                    save_json_file(SUBCATEGORIES_FILE, SUBCATEGORIES_DATA)
-                    deleted = True
-
-            if deleted:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "success"}, ensure_ascii=False).encode("utf-8"))
-            else:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "لم يتم العثور على العنصر!"}, ensure_ascii=False).encode("utf-8"))
 
         elif self.path == "/api/set_client_discount":
             email = data.get('email', '').strip()
