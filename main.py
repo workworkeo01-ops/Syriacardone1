@@ -1,3 +1,4 @@
+
 import logging
 import json
 import os
@@ -37,8 +38,6 @@ API_PRICE_TRACKING_FILE = "api_price_tracking.json"
 MAINTENANCE_FILE = "maintenance_mode.json"
 SUBCATEGORY_GROUPS_FILE = "subcategory_groups.json"
 TICKER_FILE = "ticker_settings.json"
-AUTO_DEPOSIT_FILE = "auto_deposit_methods.json"
-SHAMCASH_TX_FILE = "shamcash_transactions.json"
 
 # --------------------------------------------------
 # إعدادات بوت التليجرام للإشعارات
@@ -299,42 +298,6 @@ def send_telegram_deposit_notification(method_name, amount, tx_id, email, receip
             logging.warning(f"فشل إرسال صورة الإشعار: {e}")
 
 
-def send_telegram_auto_deposit_notification(method_name, amount, tx_id, email, user_balance, new_balance, tx_details):
-    if not TELEGRAM_PURCHASE_BOT_TOKEN or TELEGRAM_PURCHASE_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN":
-        logging.warning("لم يتم ضبط توكن بوت إشعارات الإيداع التلقائي.")
-        return
-
-    telegram_url = f"https://api.telegram.org/bot{TELEGRAM_PURCHASE_BOT_TOKEN}/sendMessage"
-    headers = {"Content-Type": "application/json"}
-
-    message = (
-        f'<tg-emoji emoji-id="5409048419211682843">✅</tg-emoji> <b>إيداع تلقائي ناجح!</b>\n'
-        f'ــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ\n'
-        f'<tg-emoji emoji-id="5253742260054409879">🏷️</tg-emoji> <b>طريقة الإيداع:</b> {method_name}\n'
-        f'<tg-emoji emoji-id="5409048419211682843">💵</tg-emoji> <b>المبلغ المحول:</b> {amount} $\n'
-        f'<tg-emoji emoji-id="5321244246705989720">🔢</tg-emoji> <b>رقم العملية:</b> {tx_id}\n'
-        f'<tg-emoji emoji-id="5321244246705989720">📧</tg-emoji> <b>إيميل المستخدم:</b> {email}\n'
-        f'<tg-emoji emoji-id="5296369303661067030">💳</tg-emoji> <b>الرصيد قبل:</b> {user_balance} $\n'
-        f'<tg-emoji emoji-id="5296369303661067030">💳</tg-emoji> <b>الرصيد بعد:</b> {new_balance} $\n'
-        f'ــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــ\n'
-        f'<tg-emoji emoji-id="5839437853469186962">📋</tg-emoji> <b>تفاصيل العملية:</b>\n'
-        f'<code>{json.dumps(tx_details, ensure_ascii=False, indent=2)[:800]}</code>'
-    )
-
-    payload = json.dumps({
-        "chat_id": TELEGRAM_ADMIN_CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML"
-    }).encode("utf-8")
-
-    try:
-        req = urllib.request.Request(telegram_url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=8) as res:
-            logging.info("تم إرسال إشعار الإيداع التلقائي للتليجرام.")
-    except Exception as e:
-        logging.error(f"فشل إرسال إشعار الإيداع التلقائي: {e}")
-
-
 def send_telegram_new_user_notification(email, password, phone, user_ip, currency_name, currency_symbol, currency_rate):
     if not TELEGRAM_PURCHASE_BOT_TOKEN or TELEGRAM_PURCHASE_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN":
         logging.warning("لم يتم ضبط توكن بوت إشعارات التسجيل.")
@@ -438,6 +401,7 @@ DEFAULT_APPEARANCE = {
     "sidebar_width": 300,
     "deposit_card_size": 100,
     "category_card_size": 100,
+    # ===== ألوان الوضع الداكن =====
     "dark_bg_color": "#050508",
     "dark_card_bg": "#121212",
     "dark_border_color": "#27272a",
@@ -445,6 +409,7 @@ DEFAULT_APPEARANCE = {
     "dark_subtext_color": "#a1a1aa",
     "dark_sidebar_bg": "#09090f",
     "dark_input_bg": "#000000",
+    # ===== ألوان الوضع الفاتح =====
     "light_bg_color": "#f4f4f5",
     "light_card_bg": "#ffffff",
     "light_border_color": "#e4e4e7",
@@ -453,6 +418,7 @@ DEFAULT_APPEARANCE = {
     "light_sidebar_bg": "#ffffff",
     "light_input_bg": "#f4f4f5",
     "light_accent_color": "#0284c7",
+    # ===== PWA =====
     "pwa_name": "SYRIA CARD ONE",
     "pwa_short_name": "SyriaCard",
     "pwa_theme_color": "#00897b",
@@ -513,33 +479,6 @@ API_PRICE_TRACKING_DATA = load_json_file(API_PRICE_TRACKING_FILE, {})
 MAINTENANCE_DATA = load_json_file(MAINTENANCE_FILE, DEFAULT_MAINTENANCE)
 SUBCATEGORY_GROUPS_DATA = load_json_file(SUBCATEGORY_GROUPS_FILE, {})
 TICKER_DATA = load_json_file(TICKER_FILE, DEFAULT_TICKER)
-AUTO_DEPOSIT_DATA = load_json_file(AUTO_DEPOSIT_FILE, [
-    {
-        "id": "sham_cash_usd",
-        "name": "شام كاش دولار",
-        "enabled": False,
-        "api_token": "",
-        "display_name": "شام كاش دولار",
-        "exchange_rate": 1,
-        "address": "",
-        "image": "",
-        "description": "",
-        "coin_id": "USD"
-    },
-    {
-        "id": "sham_cash_syp",
-        "name": "شام كاش سوري",
-        "enabled": False,
-        "api_token": "",
-        "display_name": "شام كاش سوري",
-        "exchange_rate": 1,
-        "address": "",
-        "image": "",
-        "description": "",
-        "coin_id": "SYP"
-    }
-])
-SHAMCASH_TX_DATA = load_json_file(SHAMCASH_TX_FILE, {})
 
 # Ensure sidebar_font_size & sidebar_width & deposit_card_size & category_card_size keys exist for backward compatibility
 if "sidebar_font_size" not in APPEARANCE_DATA:
@@ -605,51 +544,115 @@ def add_user_notification(email, order_uuid, message, status):
     save_json_file(NOTIFICATIONS_FILE, NOTIFICATIONS_DATA)
 
 
-# --------------------------------------------------
-# ShamCash API Helper
-# --------------------------------------------------
-def shamcash_api_request(api_token, endpoint, params=None):
-    """إرسال طلب إلى ShamCash API"""
-    base_url = "https://api.shamcash-api.com/v1"
-    url = f"{base_url}{endpoint}"
+def fetch_api_tree_recursive(provider_token, provider_url, category_id, parent_id=0, depth=0, max_depth=10):
+    """
+    تسحب الشجرة كاملة من API بشكل متكرر (recursive)
+    ترجع قائمة مسطحة (flat) من كل العناصر مع معلومات التسلسل الهرمي
+    """
+    if depth > max_depth:
+        logging.warning(f"تم الوصول للحد الأقصى من العمق ({max_depth}) في القسم {category_id}")
+        return []
     
-    if params:
-        query_string = urllib.parse.urlencode(params)
-        url = f"{url}?{query_string}"
+    if not provider_url.endswith('/'):
+        provider_url += '/'
     
-    headers = {
-        "Authorization": f"Bearer {api_token}",
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
+    all_items = []
     
-    req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=20) as response:
-        return json.loads(response.read().decode('utf-8'))
-
-
-def shamcash_get_accounts(api_token):
-    """جلب قائمة الحسابات المرتبطة"""
-    return shamcash_api_request(api_token, "/accounts")
-
-
-def shamcash_get_balances(api_token, account_id):
-    """جلب أرصدة الحساب"""
-    return shamcash_api_request(api_token, "/balances", {"account_id": account_id})
-
-
-def shamcash_get_transactions(api_token, account_id, start_at=None, end_at=None, transaction_ids=None, coin_id=None, limit=20):
-    """جلب معاملات الحساب"""
-    params = {"account_id": account_id, "limit": limit}
-    if start_at:
-        params["start_at"] = start_at
-    if end_at:
-        params["end_at"] = end_at
-    if transaction_ids:
-        params["transaction_ids"] = ",".join(str(tid) for tid in transaction_ids)
-    if coin_id:
-        params["coin_id"] = str(coin_id)
-    return shamcash_api_request(api_token, "/transactions", params)
+    try:
+        # جلب محتوى القسم الحالي
+        content_url = f"{provider_url}client/api/content/{category_id}"
+        logging.info(f"[عمق {depth}] جلب محتوى القسم: {category_id}")
+        
+        content_data = make_api_request(content_url, provider_token, timeout=20)
+        
+        if content_data.get('status') != 'OK':
+            logging.warning(f"استجابة غير ناجحة للقسم {category_id}: {content_data.get('status')}")
+            return []
+        
+        data_section = content_data.get('data', {})
+        
+        # جلب المنتجات في هذا القسم
+        products = data_section.get('products', [])
+        if isinstance(products, list):
+            for prod in products:
+                if not isinstance(prod, dict):
+                    continue
+                
+                prod_name = prod.get('name', '')
+                prod_image = prod.get('category_img', '') or prod.get('image', '')
+                prod_id = prod.get('id')
+                prod_base_price = float(prod.get('base_price', prod.get('price', 0)))
+                prod_params = prod.get('params', [])
+                prod_qty_values = prod.get('qty_values')
+                prod_product_type = prod.get('product_type', 'package')
+                prod_available = prod.get('available', True)
+                
+                # معالجة الصورة
+                if prod_image and not str(prod_image).startswith('http') and not str(prod_image).startswith('data:'):
+                    prod_image = provider_url.rstrip('/') + '/' + str(prod_image).lstrip('/')
+                
+                all_items.append({
+                    'type': 'product',
+                    'id': prod_id,
+                    'name': prod_name,
+                    'image': prod_image,
+                    'base_price': prod_base_price,
+                    'params': prod_params,
+                    'qty_values': prod_qty_values,
+                    'product_type': prod_product_type,
+                    'available': prod_available,
+                    'parent_id': parent_id,
+                    'depth': depth,
+                    'raw_data': prod
+                })
+        
+        # جلب الأقسام الفرعية
+        subcategories = data_section.get('categories', [])
+        if isinstance(subcategories, list):
+            for subcat in subcategories:
+                if not isinstance(subcat, dict):
+                    continue
+                
+                subcat_id = subcat.get('id')
+                subcat_name = subcat.get('name', '')
+                subcat_image = subcat.get('image', '')
+                subcat_parent_id = subcat.get('parent_id', category_id)
+                subcat_params = subcat.get('params', [])
+                
+                # معالجة الصورة
+                if subcat_image and not str(subcat_image).startswith('http') and not str(subcat_image).startswith('data:'):
+                    subcat_image = provider_url.rstrip('/') + '/' + str(subcat_image).lstrip('/')
+                
+                # إضافة القسم الفرعي
+                all_items.append({
+                    'type': 'subcategory',
+                    'id': subcat_id,
+                    'name': subcat_name,
+                    'image': subcat_image,
+                    'params': subcat_params,
+                    'parent_id': parent_id,
+                    'depth': depth,
+                    'raw_data': subcat
+                })
+                
+                # استدعاء متكرر لسحب محتوى القسم الفرعي
+                logging.info(f"[عمق {depth}] استدعاء متكرر للقسم الفرعي: {subcat_id} - {subcat_name}")
+                sub_items = fetch_api_tree_recursive(
+                    provider_token, 
+                    provider_url, 
+                    subcat_id, 
+                    parent_id=subcat_id,  # parent_id الجديد هو هذا القسم الفرعي
+                    depth=depth + 1,
+                    max_depth=max_depth
+                )
+                all_items.extend(sub_items)
+        
+        logging.info(f"[عمق {depth}] تم جلب {len(all_items)} عنصر من القسم {category_id}")
+        
+    except Exception as e:
+        logging.error(f"خطأ في سحب الشجرة للقسم {category_id}: {e}")
+    
+    return all_items
 
 
 # --------------------------------------------------
@@ -845,6 +848,9 @@ class ApiPriceMonitor:
             time.sleep(self.check_interval)
 
     def _check_all_api_linked_subcategories(self):
+        """مراقبة أسعار جميع الفئات المربوطة بـ API (سواء مستوردة أو مضافة يدوياً)"""
+        
+        # نجمع كل الفئات المربوطة بـ API حسب المزود
         subcats_by_provider = {}
         for sub in SUBCATEGORIES_DATA:
             provider_name = sub.get('provider_name')
@@ -859,6 +865,7 @@ class ApiPriceMonitor:
             logging.info("لا توجد فئات مربوطة بـ API حالياً للمراقبة")
             return
 
+        # نفحص كل مزود على حدة
         for provider_name, subcats in subcats_by_provider.items():
             provider = next((p for p in PROVIDERS_DATA if p.get('name') == provider_name), None)
             if not provider:
@@ -876,6 +883,7 @@ class ApiPriceMonitor:
                     logging.warning(f"استجابة المزود {provider_name} ليست قائمة منتجات")
                     continue
 
+                # نبني قاموس للوصول السريع
                 api_map = {}
                 for ap in api_products:
                     api_map[str(ap.get('id'))] = ap
@@ -894,14 +902,21 @@ class ApiPriceMonitor:
                     old_price = float(subcat.get('price', 0))
                     old_base = float(subcat.get('base_price', 0))
                     
+                    # السعر الأساسي الجديد من المزود
                     new_base = float(api_product.get('base_price', api_product.get('price', old_base)))
+                    
+                    # نسبة الربح المخزنة للفئة
                     profit_margin = float(subcat.get('profit_margin', 0))
+                    
+                    # السعر النهائي بعد الربح
                     new_price = round(new_base * (1 + (profit_margin / 100.0)), 3)
 
+                    # إذا كان في تغيير
                     if abs(new_price - old_price) > 0.001 or abs(new_base - old_base) > 0.001:
                         subcat['base_price'] = new_base
                         subcat['price'] = new_price
                         
+                        # نحدث counter_min_price إذا كانت عداد
                         if subcat.get('is_counter'):
                             subcat['counter_min_price'] = new_price
                         
@@ -922,6 +937,7 @@ class ApiPriceMonitor:
                 else:
                     logging.info(f"لا توجد تغييرات في أسعار المزود {provider_name} - عدد الفئات المفحوصة: {len(subcats)}")
 
+                # نحدث وقت آخر فحص للمستوردين
                 for import_key, import_info in API_IMPORTS_DATA.items():
                     if import_info.get('provider_name') == provider_name:
                         API_IMPORTS_DATA[import_key]['last_price_check'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1183,6 +1199,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Changa:wght@400;600;700;800&family=El+Messiri:wght@400;600;700&family=Lateef&family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Kufi+Arabic:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Readex+Pro:wght@400;600;700&family=Alexandria:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;700&family=Harmattan&family=Mada:wght@400;700&display=swap" rel="stylesheet">
     <style id="dynamicStyles">
         :root {
+            /* ألوان الوضع الداكن (افتراضية) */
             --dark-bg-color: #050508;
             --dark-card-bg: #121212;
             --dark-border-color: #27272a;
@@ -1191,6 +1208,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             --dark-sidebar-bg: #09090f;
             --dark-input-bg: #000000;
 
+            /* ألوان الوضع الفاتح (افتراضية) */
             --light-bg-color: #f4f4f5;
             --light-card-bg: #ffffff;
             --light-border-color: #e4e4e7;
@@ -1200,6 +1218,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             --light-input-bg: #f4f4f5;
             --light-accent-color: #0284c7;
 
+            /* الألوان النشطة (تتغير حسب الثيم) */
             --bg-color: var(--dark-bg-color);
             --card-bg: var(--dark-card-bg);
             --border-color: var(--dark-border-color);
@@ -1212,6 +1231,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             --deposit-label-color: #ffffff;
             --sidebar-item-color: #ffffff;
 
+            /* ألوان الهيدر */
             --top-header-c1: #004d40;
             --top-header-c2: #00897b;
             --top-header-c3: #26a69a;
@@ -1219,6 +1239,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             --bottom-nav-c2: #059669;
             --bottom-nav-c3: #0d9488;
 
+            /* الأحجام */
             --general-font-size: 14px;
             --sidebar-font-size: 14px;
             --top-header-height: 65px;
@@ -1273,36 +1294,107 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             gap: 15px;
         }
 
+        /* للأجهزة اللوحية والكمبيوتر */
         @media (min-width: 768px) {
-            body { max-width: 750px; margin: 0 auto; }
-            .grid-container { grid-template-columns: repeat(4, 1fr) !important; gap: 20px 16px !important; }
-            .header { border-radius: 0 0 16px 16px; }
-            .banner-container { max-width: 90%; height: 180px; }
-            .sidebar { max-width: 380px; }
+            body {
+                max-width: 750px;
+                margin: 0 auto;
+            }
+            
+            .grid-container {
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 20px 16px !important;
+            }
+            
+            .header {
+                border-radius: 0 0 16px 16px;
+            }
+            
+            .banner-container {
+                max-width: 90%;
+                height: 180px;
+            }
+            
+            .sidebar {
+                max-width: 380px;
+            }
         }
 
+        /* للشاشات الكبيرة (لابتوب/كمبيوتر) */
         @media (min-width: 1024px) {
-            body { max-width: 900px; }
-            .grid-container { grid-template-columns: repeat(5, 1fr) !important; gap: 24px 18px !important; }
-            .banner-container { max-width: 880px; height: 220px; }
-            .bottom-nav-bar { max-width: 900px; left: 50%; transform: translateX(-50%); border-radius: 20px 20px 0 0; }
-            .main-content-wrapper { max-width: 880px; margin: 0 auto; }
-            .ticker-wrapper { max-width: 880px; }
+            body {
+                max-width: 900px;
+            }
+            
+            .grid-container {
+                grid-template-columns: repeat(5, 1fr) !important;
+                gap: 24px 18px !important;
+            }
+            
+            .banner-container {
+                max-width: 880px;
+                height: 220px;
+            }
+            
+            .bottom-nav-bar {
+                max-width: 900px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-radius: 20px 20px 0 0;
+            }
+            
+            .main-content-wrapper {
+                max-width: 880px;
+                margin: 0 auto;
+            }
+            
+            .ticker-wrapper {
+                max-width: 880px;
+            }
         }
 
+        /* للشاشات الكبيرة جداً */
         @media (min-width: 1440px) {
-            body { max-width: 1100px; }
-            .grid-container { grid-template-columns: repeat(6, 1fr) !important; }
-            .banner-container { max-width: 1080px; height: 280px; }
-            .bottom-nav-bar { max-width: 1100px; }
-            .main-content-wrapper { max-width: 1080px; }
-            .ticker-wrapper { max-width: 1080px; }
+            body {
+                max-width: 1100px;
+            }
+            
+            .grid-container {
+                grid-template-columns: repeat(6, 1fr) !important;
+            }
+            
+            .banner-container {
+                max-width: 1080px;
+                height: 280px;
+            }
+            
+            .bottom-nav-bar {
+                max-width: 1100px;
+            }
+            
+            .main-content-wrapper {
+                max-width: 1080px;
+            }
+            
+            .ticker-wrapper {
+                max-width: 1080px;
+            }
         }
 
+        /* للهواتف الصغيرة */
         @media (max-width: 360px) {
-            .store-name { font-size: 0.85rem !important; }
-            .balance-text { font-size: 0.7rem !important; }
-            .grid-container { grid-template-columns: repeat(2, 1fr) !important; gap: 12px 8px !important; }
+            .store-name {
+                font-size: 0.85rem !important;
+            }
+            
+            .balance-text {
+                font-size: 0.7rem !important;
+            }
+            
+            .grid-container {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 12px 8px !important;
+            }
         }
 
         #pageTransitionLoader {
@@ -1366,9 +1458,19 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             transition: opacity 0.4s ease, visibility 0.4s ease;
         }
         #splashScreen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-        .splash-logo { width: 130px; height: 130px; object-fit: cover; border-radius: 50%; border: 2px solid var(--border-color); box-shadow: 0 0 20px rgba(56, 189, 248, 0.3); }
-        .splash-spinner { width: 42px; height: 42px; border: 3px solid rgba(255, 255, 255, 0.1); border-top: 3px solid var(--accent-color); border-radius: 50%; animation: spin 0.9s linear infinite; }
-        .btn-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0, 0, 0, 0.2); border-top: 2px solid #000; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-left: 6px; }
+        .splash-logo {
+            width: 130px; height: 130px; object-fit: cover; border-radius: 50%;
+            border: 2px solid var(--border-color); box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+        }
+        .splash-spinner {
+            width: 42px; height: 42px; border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--accent-color); border-radius: 50%; animation: spin 0.9s linear infinite;
+        }
+        .btn-spinner {
+            display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0, 0, 0, 0.2);
+            border-top: 2px solid #000; border-radius: 50%; animation: spin 0.8s linear infinite;
+            vertical-align: middle; margin-left: 6px;
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .header {
@@ -1379,20 +1481,61 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             overflow: hidden; transition: height 0.2s ease;
         }
         .header-right { display: flex; align-items: center; gap: 8px; }
-        .header-logo { width: calc(var(--top-header-height) * 0.55); height: calc(var(--top-header-height) * 0.55); max-width: 45px; max-height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid rgba(255,255,255,0.3); background: #000; }
-        .store-name { font-size: calc(var(--top-header-height) * 0.25 + 4px); font-weight: 800; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap; }
+        .header-logo {
+            width: calc(var(--top-header-height) * 0.55); height: calc(var(--top-header-height) * 0.55);
+            max-width: 45px; max-height: 45px;
+            border-radius: 8px; object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.3); background: #000;
+        }
+        .store-name { 
+            font-size: calc(var(--top-header-height) * 0.25 + 4px); 
+            font-weight: 800; color: #ffffff; letter-spacing: 0.5px; 
+            white-space: nowrap;
+        }
         .header-left { display: flex; align-items: center; gap: 6px; }
-        .shield-icon { width: calc(var(--top-header-height) * 0.4); height: calc(var(--top-header-height) * 0.4); max-width: 28px; max-height: 28px; display: flex; align-items: center; justify-content: center; color: #ffffff; }
+        .shield-icon { 
+            width: calc(var(--top-header-height) * 0.4); 
+            height: calc(var(--top-header-height) * 0.4); 
+            max-width: 28px; max-height: 28px;
+            display: flex; align-items: center; justify-content: center; color: #ffffff; 
+        }
         .shield-icon svg { width: 100%; height: 100%; }
-        .add-balance-btn { background-color: #ffffff; color: #00897b; border-radius: 50%; width: calc(var(--top-header-height) * 0.4); height: calc(var(--top-header-height) * 0.4); max-width: 26px; max-height: 26px; min-width: 18px; min-height: 18px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: calc(var(--top-header-height) * 0.22 + 2px); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2); border: none; text-decoration: none; transition: transform 0.1s ease; }
+        .add-balance-btn {
+            background-color: #ffffff; color: #00897b; border-radius: 50%;
+            width: calc(var(--top-header-height) * 0.4); 
+            height: calc(var(--top-header-height) * 0.4); 
+            max-width: 26px; max-height: 26px;
+            min-width: 18px; min-height: 18px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: calc(var(--top-header-height) * 0.22 + 2px); 
+            cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            border: none; text-decoration: none; transition: transform 0.1s ease;
+        }
         .add-balance-btn:active { transform: scale(0.9); }
-        .balance-text { font-size: calc(var(--top-header-height) * 0.2 + 2px); font-weight: 700; color: #ffffff; direction: ltr; white-space: nowrap; }
-        .menu-hamburger { background: transparent; border: none; cursor: pointer; display: flex; flex-direction: column; gap: 4px; width: calc(var(--top-header-height) * 0.32); max-width: 24px; min-width: 18px; padding: 0; }
+        .balance-text { 
+            font-size: calc(var(--top-header-height) * 0.2 + 2px); 
+            font-weight: 700; color: #ffffff; direction: ltr; white-space: nowrap;
+        }
+        .menu-hamburger {
+            background: transparent; border: none; cursor: pointer;
+            display: flex; flex-direction: column; gap: 4px; 
+            width: calc(var(--top-header-height) * 0.32);
+            max-width: 24px; min-width: 18px;
+            padding: 0;
+        }
         .menu-hamburger span { width: 100%; height: 3px; background-color: #ffffff; border-radius: 2px; }
-        .notif-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: #fff; min-width: 16px; height: 16px; border-radius: 8px; font-size: 0.65rem; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+        .notif-badge {
+            position: absolute; top: -4px; right: -4px; background: #ef4444; color: #fff;
+            min-width: 16px; height: 16px; border-radius: 8px; font-size: 0.65rem; font-weight: 800;
+            display: flex; align-items: center; justify-content: center; padding: 0 4px;
+        }
         .notif-btn-wrapper { position: relative; display: inline-block; }
 
-        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); z-index: 999; opacity: 0; visibility: hidden; transition: opacity 0.3s ease; }
+        .sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px);
+            z-index: 999; opacity: 0; visibility: hidden; transition: opacity 0.3s ease;
+        }
         .sidebar-overlay.active { opacity: 1; visibility: visible; }
 
         .sidebar {
@@ -1407,34 +1550,75 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .sidebar-header { display: flex; align-items: center; justify-content: flex-end; padding: 0 5px; }
         .close-btn { background: transparent; border: none; color: var(--subtext-color); font-size: 1.5rem; cursor: pointer; }
 
-        .guest-auth-card { background-color: #245831; border-radius: 26px; padding: 24px 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; width: 100%; margin-bottom: 5px; box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+        .guest-auth-card {
+            background-color: #245831; border-radius: 26px; padding: 24px 18px;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            gap: 12px; width: 100%; margin-bottom: 5px; box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+        }
         .guest-auth-title { font-size: 1.45rem; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
         .guest-auth-desc { font-size: 0.85rem; color: #d1fae5; line-height: 1.5; font-weight: 500; margin-bottom: 4px; }
-        .guest-btn-blue { width: 100%; background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%); color: #ffffff; border: none; border-radius: 22px; padding: 11px 16px; font-size: 0.92rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4); transition: transform 0.1s ease, filter 0.2s ease; }
+        .guest-btn-blue {
+            width: 100%; background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+            color: #ffffff; border: none; border-radius: 22px; padding: 11px 16px;
+            font-size: 0.92rem; font-weight: 800; cursor: pointer;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4); transition: transform 0.1s ease, filter 0.2s ease;
+        }
         .guest-btn-blue:active { transform: scale(0.97); }
-        .guest-btn-google { width: 100%; background-color: #ffffff; color: #1f2937; border: none; border-radius: 22px; padding: 10px 16px; font-size: 0.9rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: transform 0.1s ease; }
+        .guest-btn-google {
+            width: 100%; background-color: #ffffff; color: #1f2937; border: none;
+            border-radius: 22px; padding: 10px 16px; font-size: 0.9rem; font-weight: 800;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: transform 0.1s ease;
+        }
         .guest-btn-google:active { transform: scale(0.97); }
 
         .sidebar-profile-box { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; margin-bottom: 5px; }
-        .sidebar-avatar { width: 75px; height: 75px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-color); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); background-color: var(--input-bg); }
+        .sidebar-avatar {
+            width: 75px; height: 75px; border-radius: 50%; object-fit: cover;
+            border: 2px solid var(--accent-color); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            background-color: var(--input-bg);
+        }
         .sidebar-user-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-        .user-info-rect { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 4px; text-align: center; display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
+        .user-info-rect {
+            background-color: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 8px 4px; text-align: center;
+            display: flex; flex-direction: column; gap: 3px; overflow: hidden;
+        }
         .user-info-lbl { font-size: 0.65rem; color: var(--subtext-color); font-weight: 600; }
         .user-info-val { font-size: 0.72rem; color: var(--text-color); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .sidebar-menu-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-        .menu-nav-item { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; border-radius: 14px; color: var(--sidebar-item-color); font-size: var(--sidebar-font-size); font-weight: 700; cursor: pointer; transition: all 0.2s ease; background: transparent; border: none; text-align: right; text-decoration: none; }
+        .menu-nav-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 13px 18px; border-radius: 14px; color: var(--sidebar-item-color);
+            font-size: var(--sidebar-font-size); font-weight: 700; cursor: pointer;
+            transition: all 0.2s ease; background: transparent; border: none;
+            text-align: right; text-decoration: none;
+        }
         .menu-nav-item:hover { background: rgba(125, 125, 125, 0.1); }
-        .menu-nav-item.active-home { background-color: #3b3a4a !important; color: #ffffff !important; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .menu-nav-item.active-home { 
+            background-color: #3b3a4a !important; color: #ffffff !important;
+            border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
+        }
         body.light-mode .menu-nav-item.active-home { background-color: #0284c7 !important; color: #ffffff !important; }
         .nav-icon { font-size: 1.15rem; display: flex; align-items: center; justify-content: center; width: 28px; }
 
-        .dark-mode-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: transparent; margin-top: 5px; border-top: 1px solid var(--border-color); padding-top: 16px; }
+        .dark-mode-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 14px; background: transparent; margin-top: 5px;
+            border-top: 1px solid var(--border-color); padding-top: 16px;
+        }
         .dark-mode-title { font-size: 0.95rem; font-weight: 700; color: var(--text-color); }
         .toggle-switch { position: relative; display: inline-block; width: 54px; height: 30px; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #383842; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 34px; }
-        .toggle-slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: #4ade80; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 50%; }
+        .toggle-slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #383842; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 34px;
+        }
+        .toggle-slider:before {
+            position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px;
+            background-color: #4ade80; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 50%;
+        }
         input:checked + .toggle-slider { background-color: #2e593e; }
         input:checked + .toggle-slider:before { transform: translateX(24px); background-color: #4ade80; }
 
@@ -1449,47 +1633,130 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .icon-notif { color: #facc15; }
         .icon-currency { color: #f59e0b; }
 
-        .logout-btn-nav { margin-top: 8px; background: rgba(220, 38, 38, 0.12); color: #f87171 !important; border: 1px solid rgba(220, 38, 38, 0.3); }
+        .logout-btn-nav {
+            margin-top: 8px; background: rgba(220, 38, 38, 0.12);
+            color: #f87171 !important; border: 1px solid rgba(220, 38, 38, 0.3);
+        }
 
-        .bottom-nav-bar { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: var(--bottom-nav-height); background: linear-gradient(135deg, var(--bottom-nav-c1) 0%, var(--bottom-nav-c2) 50%, var(--bottom-nav-c3) 100%); border-radius: 0; display: flex; align-items: center; justify-content: space-around; padding: 0 15px; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5); z-index: 5000; }
-        .bottom-nav-btn { background: transparent; border: none; color: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer; width: 42px; height: 42px; border-radius: 50%; transition: all 0.2s ease; position: relative; }
+        .bottom-nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            width: 100%; height: var(--bottom-nav-height);
+            background: linear-gradient(135deg, var(--bottom-nav-c1) 0%, var(--bottom-nav-c2) 50%, var(--bottom-nav-c3) 100%);
+            border-radius: 0; display: flex; align-items: center; justify-content: space-around;
+            padding: 0 15px; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5); z-index: 5000;
+        }
+        .bottom-nav-btn {
+            background: transparent; border: none; color: #ffffff; display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+            width: 42px; height: 42px; border-radius: 50%; transition: all 0.2s ease;
+            position: relative;
+        }
         .bottom-nav-btn:active { transform: scale(0.9); }
         .bottom-btn-pink { background-color: #f43f5e; width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 4px 12px rgba(244, 63, 94, 0.4); }
         .bottom-btn-gradient-search { background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%); width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4); }
 
-        .form-input { width: 100%; padding: 12px; background-color: var(--input-bg); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-color); font-size: 0.85rem; outline: none; }
+        .form-input {
+            width: 100%; padding: 12px; background-color: var(--input-bg);
+            border: 1px solid var(--border-color); border-radius: 10px;
+            color: var(--text-color); font-size: 0.85rem; outline: none;
+        }
         .form-input:focus { border-color: #3b82f6; }
 
-        .banner-container { width: 92%; margin: 10px auto 0 auto; height: 120px; background: var(--card-bg); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color); position: relative; overflow: hidden; }
-        .banner-slide { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.5s ease-in-out; }
+        .banner-container {
+            width: 92%; margin: 10px auto 0 auto; height: 120px;
+            background: var(--card-bg); border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border-color); position: relative; overflow: hidden;
+        }
+        .banner-slide {
+            width: 100%; height: 100%; object-fit: cover;
+            position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.5s ease-in-out;
+        }
         .banner-slide.active { opacity: 1; }
         .banner-placeholder { font-size: 0.95rem; font-weight: 700; color: var(--text-color); }
 
-        .ticker-wrapper { width: 92%; margin: 0 auto; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 0; overflow: hidden; }
-        .ticker-text { display: inline-block; white-space: nowrap; color: var(--ticker-color); font-size: 0.85rem; font-weight: 700; animation: marquee 12s linear infinite; }
+        .ticker-wrapper {
+            width: 92%; margin: 0 auto; background-color: var(--card-bg);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            padding: 8px 0; overflow: hidden;
+        }
+        .ticker-text {
+            display: inline-block; white-space: nowrap; color: var(--ticker-color);
+            font-size: 0.85rem; font-weight: 700; animation: marquee 12s linear infinite;
+        }
         @keyframes marquee { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
         .main-content-wrapper { padding: 0 15px; display: flex; flex-direction: column; gap: 15px; }
         .section-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .back-btn { background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--accent-color); padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: none; white-space: nowrap; }
+        .back-btn {
+            background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--accent-color);
+            padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;
+            cursor: pointer; display: none; white-space: nowrap;
+        }
         .search-container { width: 100%; }
-        .search-input { width: 100%; padding: 9px 12px; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-size: 0.8rem; outline: none; transition: border-color 0.2s; }
+        .search-input {
+            width: 100%; padding: 9px 12px; background-color: var(--card-bg);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            color: var(--text-color); font-size: 0.8rem; outline: none; transition: border-color 0.2s;
+        }
         .search-input:focus { border-color: var(--accent-color); }
 
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 12px; padding: 10px 5px; }
-        .item-card { background: transparent; border: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; cursor: pointer; overflow: visible; position: relative; transform: none; padding: 0; width: 100%; }
-        .item-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 14px; position: static; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); background-color: var(--card-bg); transition: transform 0.15s ease; }
+        .item-card {
+            background: transparent; border: none; display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-start; cursor: pointer;
+            overflow: visible; position: relative; transform: none; padding: 0; width: 100%;
+        }
+        .item-img {
+            width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 14px;
+            position: static; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08); background-color: var(--card-bg);
+            transition: transform 0.15s ease;
+        }
         .item-card:active .item-img { transform: scale(0.95); }
-        .item-label { width: 100%; background: transparent; border: none; padding: 6px 2px 0 2px; text-align: center; font-size: 0.82rem; font-weight: 700; color: var(--item-label-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 1; }
-        .item-price-tag { font-size: 0.82rem; font-weight: 800; color: #4ade80; margin-top: 1px; direction: ltr; text-align: center; }
+        .item-label {
+            width: 100%;
+            background: transparent;
+            border: none;
+            padding: 6px 2px 0 2px;
+            text-align: center;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--item-label-color);
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            z-index: 1;
+            line-height: 1.3;
+            max-height: 2.6em;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            word-break: break-word;
+        }
+        .item-price-tag {
+            font-size: 0.82rem; font-weight: 800; color: #4ade80; margin-top: 1px;
+            direction: ltr; text-align: center;
+        }
 
-        .currency-selector-box { background: linear-gradient(135deg, #78350f 0%, #92400e 50%, #b45309 100%); border: 1px solid #f59e0b; border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; width: 100%; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25); transition: transform 0.15s ease; }
+        .currency-selector-box {
+            background: linear-gradient(135deg, #78350f 0%, #92400e 50%, #b45309 100%);
+            border: 1px solid #f59e0b; border-radius: 12px;
+            padding: 10px 14px; display: flex; align-items: center;
+            justify-content: space-between; cursor: pointer; width: 100%;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+            transition: transform 0.15s ease;
+        }
         .currency-selector-box:active { transform: scale(0.97); }
         .currency-selector-label { font-size: 0.82rem; font-weight: 800; color: #ffffff; }
         .currency-selector-value { font-size: 0.78rem; font-weight: 700; color: #fef3c7; direction: rtl; }
 
         #currencySelectModal .modal-box { background-color: #121023; }
-        .currency-option-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background-color: #1a1730; border: 1px solid #2e2850; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+        .currency-option-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 14px; background-color: #1a1730; border: 1px solid #2e2850;
+            border-radius: 12px; cursor: pointer; transition: all 0.2s;
+        }
         .currency-option-item:hover { border-color: #f59e0b; background-color: #1f1b38; }
         .currency-option-item.selected { border-color: #f59e0b; background: linear-gradient(135deg, #78350f 0%, #92400e 100%); }
         .currency-option-item.default-option { border-color: #4ade80; }
@@ -1500,7 +1767,10 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         #depositPage, #myOrdersPage, #myDepositsPage, #myWalletPage, #myNotificationsPage { display: none; flex-direction: column; gap: 14px; width: 100%; padding: 0 15px; }
 
         .wallet-cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; margin-top: 5px; }
-        .wallet-stat-card { border-radius: 14px; padding: 16px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .wallet-stat-card {
+            border-radius: 14px; padding: 16px 12px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
         .wallet-stat-card.green { background-color: #22c55e; color: #ffffff; }
         .wallet-stat-card.red { background-color: #ef4444; color: #ffffff; }
         .wallet-stat-card.purple { background-color: #a855f7; color: #ffffff; }
@@ -1509,36 +1779,83 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .wallet-stat-label { font-size: 0.82rem; font-weight: 700; text-align: center; }
 
         .wallet-filters-row { display: flex; gap: 10px; width: 100%; margin-top: 5px; }
-        .wallet-date-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 25px; padding: 8px 14px; display: flex; flex-direction: column; align-items: center; }
+        .wallet-date-box {
+            flex: 1; background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 25px; padding: 8px 14px; display: flex; flex-direction: column; align-items: center;
+        }
         .wallet-date-box label { font-size: 0.65rem; color: var(--subtext-color); font-weight: 700; margin-bottom: 2px; }
-        .wallet-date-box input[type="date"] { background: transparent; border: none; color: var(--text-color); font-size: 0.8rem; font-weight: 700; outline: none; width: 100%; text-align: center; }
+        .wallet-date-box input[type="date"] {
+            background: transparent; border: none; color: var(--text-color);
+            font-size: 0.8rem; font-weight: 700; outline: none; width: 100%; text-align: center;
+        }
         .wallet-search-row { display: flex; align-items: center; gap: 10px; width: 100%; }
-        .wallet-search-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 25px; padding: 10px 16px; display: flex; align-items: center; }
+        .wallet-search-box {
+            flex: 1; background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 25px; padding: 10px 16px; display: flex; align-items: center;
+        }
         .wallet-search-box input { background: transparent; border: none; color: var(--text-color); font-size: 0.85rem; outline: none; width: 100%; text-align: right; }
-        .wallet-search-btn { width: 45px; height: 45px; background: #2dd4bf; border-radius: 50%; border: none; color: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(45,212,191,0.3); flex-shrink: 0; }
-        .wallet-empty-box { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; padding: 40px 0; color: var(--subtext-color); font-weight: 700; font-size: 0.9rem; }
+        .wallet-search-btn {
+            width: 45px; height: 45px; background: #2dd4bf; border-radius: 50%;
+            border: none; color: #ffffff; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 12px rgba(45,212,191,0.3); flex-shrink: 0;
+        }
+        .wallet-empty-box {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 15px; padding: 40px 0; color: var(--subtext-color); font-weight: 700; font-size: 0.9rem;
+        }
 
         .orders-header-title { font-size: 1.25rem; font-weight: 800; color: var(--text-color); text-align: left; margin-bottom: 5px; }
         .orders-date-filters { display: flex; gap: 10px; width: 100%; }
-        .orders-date-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 25px; padding: 8px 14px; display: flex; flex-direction: column; align-items: center; position: relative; }
+        .orders-date-box {
+            flex: 1; background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 25px; padding: 8px 14px; display: flex; flex-direction: column;
+            align-items: center; position: relative;
+        }
         .orders-date-box label { font-size: 0.65rem; color: var(--subtext-color); font-weight: 700; margin-bottom: 2px; }
-        .orders-date-box input[type="date"] { background: transparent; border: none; color: var(--text-color); font-size: 0.82rem; font-weight: 700; outline: none; width: 100%; text-align: center; }
+        .orders-date-box input[type="date"] {
+            background: transparent; border: none; color: var(--text-color);
+            font-size: 0.82rem; font-weight: 700; outline: none; width: 100%; text-align: center;
+        }
         .orders-search-row { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 5px; }
-        .orders-search-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 25px; padding: 10px 16px; display: flex; align-items: center; }
+        .orders-search-box {
+            flex: 1; background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 25px; padding: 10px 16px; display: flex; align-items: center;
+        }
         .orders-search-box input { background: transparent; border: none; color: var(--text-color); font-size: 0.85rem; outline: none; width: 100%; text-align: right; }
-        .orders-search-icon-btn { width: 45px; height: 45px; background: #2dd4bf; border-radius: 50%; border: none; color: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(45,212,191,0.3); flex-shrink: 0; }
+        .orders-search-icon-btn {
+            width: 45px; height: 45px; background: #2dd4bf; border-radius: 50%;
+            border: none; color: #ffffff; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 12px rgba(45,212,191,0.3); flex-shrink: 0;
+        }
         .orders-filters-group { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
         .orders-filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .filter-pill { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 6px 14px; font-size: 0.78rem; font-weight: 700; color: var(--subtext-color); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+        .filter-pill {
+            background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px;
+            padding: 6px 14px; font-size: 0.78rem; font-weight: 700; color: var(--subtext-color);
+            cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+        }
         .filter-pill.active { background: #0284c7; color: #ffffff; border-color: #0284c7; }
         .filter-pill .pill-count { background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 10px; font-size: 0.7rem; }
 
         .orders-bottom-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 10px; }
-        .export-excel-btn { background: #0d9488; color: #ffffff; border: none; border-radius: 25px; padding: 10px 22px; font-size: 0.85rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(13,148,136,0.3); }
-        .total-expense-pill { background: var(--card-bg); border: 1px solid #facc15; border-radius: 25px; padding: 8px 16px; font-size: 0.85rem; font-weight: 800; color: #facc15; display: inline-flex; align-items: center; gap: 5px; direction: ltr; }
+        .export-excel-btn {
+            background: #0d9488; color: #ffffff; border: none; border-radius: 25px;
+            padding: 10px 22px; font-size: 0.85rem; font-weight: 800; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(13,148,136,0.3);
+        }
+        .total-expense-pill {
+            background: var(--card-bg); border: 1px solid #facc15; border-radius: 25px;
+            padding: 8px 16px; font-size: 0.85rem; font-weight: 800; color: #facc15;
+            display: inline-flex; align-items: center; gap: 5px; direction: ltr;
+        }
         .orders-list { display: flex; flex-direction: column; gap: 10px; margin-top: 5px; }
         
-        .order-card-exact { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: pointer; transition: border-color 0.2s; }
+        .order-card-exact {
+            background-color: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 14px; padding: 12px 16px; display: flex;
+            justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: pointer; transition: border-color 0.2s;
+        }
         .order-card-exact:hover { border-color: var(--accent-color); }
         .order-card-right-exact { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 2px; }
         .order-id-exact { font-size: 0.85rem; font-weight: 800; color: var(--text-color); direction: ltr; }
@@ -1559,100 +1876,342 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .status-pending { color: #f59e0b; border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
         .status-reject { color: #f87171; border-color: #f87171; background: rgba(248, 113, 113, 0.1); }
 
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); z-index: 3000; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.3s ease; }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px);
+            z-index: 3000; display: flex; align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease;
+        }
         .modal-overlay.active { opacity: 1; visibility: visible; }
-        .modal-box { background-color: #121023; border: 1px solid rgba(217, 163, 62, 0.3); border-radius: 20px; width: 92%; max-width: 360px; padding: 22px; display: flex; flex-direction: column; gap: 16px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .modal-box {
+            background-color: #121023; border: 1px solid rgba(217, 163, 62, 0.3);
+            border-radius: 20px; width: 92%; max-width: 360px; padding: 22px;
+            display: flex; flex-direction: column; gap: 16px; position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
 
         .purchase-top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .purchase-price-badge { background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%); color: #000000; padding: 8px 18px; border-radius: 30px; font-size: 1.05rem; font-weight: 800; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.35); direction: ltr; }
+        .purchase-price-badge {
+            background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%);
+            color: #000000; padding: 8px 18px; border-radius: 30px;
+            font-size: 1.05rem; font-weight: 800; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.35); direction: ltr;
+        }
         .purchase-title-box { display: flex; align-items: center; gap: 8px; color: #ffffff; font-size: 0.95rem; font-weight: 700; text-align: right; }
-        .purchase-input-custom { width: 100%; padding: 14px 18px; background-color: #1a1730; border: 1px solid #2e2850; border-radius: 16px; color: #ffffff; font-size: 0.9rem; text-align: right; outline: none; transition: border-color 0.2s; }
+        .purchase-input-custom {
+            width: 100%; padding: 14px 18px; background-color: #1a1730;
+            border: 1px solid #2e2850; border-radius: 16px; color: #ffffff;
+            font-size: 0.9rem; text-align: right; outline: none; transition: border-color 0.2s;
+        }
         .purchase-input-custom::placeholder { color: #787494; }
         .purchase-input-custom:focus { border-color: #daa520; }
         .purchase-buttons-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px; width: 100%; }
-        .buy-btn-gold { background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%); color: #000000; border: none; border-radius: 16px; padding: 12px; font-size: 1rem; font-weight: 800; cursor: pointer; text-align: center; box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3); transition: transform 0.1s; }
+        .buy-btn-gold {
+            background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%);
+            color: #000000; border: none; border-radius: 16px; padding: 12px;
+            font-size: 1rem; font-weight: 800; cursor: pointer; text-align: center;
+            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3); transition: transform 0.1s;
+        }
         .buy-btn-gold:active { transform: scale(0.96); }
-        .cancel-btn-outline { background: transparent; color: #f87171; border: 1px solid #f87171; border-radius: 16px; padding: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.2s; }
+        .cancel-btn-outline {
+            background: transparent; color: #f87171; border: 1px solid #f87171;
+            border-radius: 16px; padding: 12px; font-size: 1rem; font-weight: 700;
+            cursor: pointer; text-align: center; transition: all 0.2s;
+        }
         .cancel-btn-outline:active { transform: scale(0.96); }
         .purchase-notice-box { display: flex; align-items: flex-start; gap: 10px; background-color: #16132d; border-radius: 12px; padding: 12px; position: relative; }
         .purchase-notice-line { width: 3px; background-color: #daa520; border-radius: 3px; position: absolute; right: 0; top: 10px; bottom: 10px; }
         .purchase-notice-text { font-size: 0.8rem; color: #b0aec4; line-height: 1.5; text-align: right; padding-right: 8px; }
 
         .dep-desc-box { background-color: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; font-size: 0.78rem; color: var(--subtext-color); line-height: 1.4; }
-        .dep-code-box { background-color: var(--input-bg); border: 1px dashed var(--accent-color); border-radius: 8px; padding: 10px; font-size: 0.85rem; font-weight: 700; color: var(--text-color); text-align: center; cursor: pointer; word-break: break-all; user-select: all; }
+        .dep-code-box {
+            background-color: var(--input-bg); border: 1px dashed var(--accent-color);
+            border-radius: 8px; padding: 10px; font-size: 0.85rem; font-weight: 700;
+            color: var(--text-color); text-align: center; cursor: pointer;
+            word-break: break-all; user-select: all;
+        }
         .dep-code-box:hover { background-color: rgba(56, 189, 248, 0.05); }
-        .dep-amount-calc-box { background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%); border: 1px solid #10b981; border-radius: 12px; padding: 12px; display: none; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+        .dep-amount-calc-box {
+            background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+            border: 1px solid #10b981; border-radius: 12px; padding: 12px;
+            display: none; flex-direction: column; align-items: center; gap: 4px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
         .dep-amount-calc-box.show { display: flex; }
         .dep-amount-calc-label { font-size: 0.75rem; color: #a7f3d0; font-weight: 600; }
         .dep-amount-calc-value { font-size: 1.4rem; font-weight: 800; color: #ffffff; direction: ltr; }
 
         .phone-input-wrapper { position: relative; width: 100%; }
         .phone-input-wrapper .form-input { padding-right: 45px; }
-        .phone-prefix { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--subtext-color); font-size: 0.8rem; font-weight: 700; background: var(--input-bg); padding: 0 5px; border-left: 1px solid var(--border-color); }
+        .phone-prefix {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            color: var(--subtext-color); font-size: 0.8rem; font-weight: 700;
+            background: var(--input-bg); padding: 0 5px; border-left: 1px solid var(--border-color);
+        }
 
-        #authModal, #registerModal, #completeProfileModal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #06050b; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px; box-sizing: border-box; overflow-y: auto; }
+        #authModal, #registerModal, #completeProfileModal {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #06050b; z-index: 10000;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            padding: 24px 20px; box-sizing: border-box; overflow-y: auto;
+        }
         #authModal.active, #registerModal.active, #completeProfileModal.active { display: flex; }
-        .auth-fullscreen-wrapper { width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; gap: 14px; position: relative; }
+        .auth-fullscreen-wrapper {
+            width: 100%; max-width: 380px; display: flex; flex-direction: column;
+            align-items: center; gap: 14px; position: relative;
+        }
         .auth-store-logo { width: 100px; height: 100px; object-fit: contain; border-radius: 16px; margin-bottom: 20px; }
         .auth-input-box { width: 100%; position: relative; display: flex; align-items: center; }
-        .auth-input-custom { width: 100%; background-color: #171520; border: 1px solid #232030; border-radius: 35px; padding: 15px 20px 15px 48px; color: #ffffff; font-size: 0.92rem; outline: none; text-align: right; transition: border-color 0.2s; }
+        .auth-input-custom {
+            width: 100%; background-color: #171520; border: 1px solid #232030;
+            border-radius: 35px; padding: 15px 20px 15px 48px; color: #ffffff;
+            font-size: 0.92rem; outline: none; text-align: right; transition: border-color 0.2s;
+        }
         .auth-input-custom:focus { border-color: #1b7a43; }
         .auth-input-custom::placeholder { color: #9ca3af; }
-        .auth-input-icon { position: absolute; left: 18px; display: flex; align-items: center; justify-content: center; color: #4ade80; cursor: pointer; }
+        .auth-input-icon {
+            position: absolute; left: 18px; display: flex; align-items: center;
+            justify-content: center; color: #4ade80; cursor: pointer;
+        }
         .register-names-grid { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .register-names-grid .auth-input-custom { padding: 15px 18px; }
-        .auth-green-btn { width: 100%; background: linear-gradient(90deg, #125e34 0%, #1e824c 50%, #125e34 100%); border: 1px solid #1f8a4c; color: #ffffff; padding: 14px; border-radius: 35px; font-size: 1.05rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 15px rgba(22, 101, 52, 0.4); margin-top: 4px; transition: transform 0.1s ease; }
+        .auth-green-btn {
+            width: 100%; background: linear-gradient(90deg, #125e34 0%, #1e824c 50%, #125e34 100%);
+            border: 1px solid #1f8a4c; color: #ffffff; padding: 14px;
+            border-radius: 35px; font-size: 1.05rem; font-weight: 800; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(22, 101, 52, 0.4); margin-top: 4px; transition: transform 0.1s ease;
+        }
         .auth-green-btn:active { transform: scale(0.98); }
-        .auth-forgot-link { width: 100%; text-align: left; color: #2e7d4e; font-size: 0.85rem; font-weight: 700; text-decoration: underline; cursor: pointer; margin-top: -4px; }
+        .auth-forgot-link {
+            width: 100%; text-align: left; color: #2e7d4e; font-size: 0.85rem;
+            font-weight: 700; text-decoration: underline; cursor: pointer; margin-top: -4px;
+        }
         .auth-divider { width: 100%; display: flex; align-items: center; justify-content: center; position: relative; margin: 4px 0; }
         .auth-divider-line { width: 100%; height: 1px; background-color: #1e1b2e; }
-        .auth-divider-text { position: absolute; background-color: #242234; color: #d1d5db; font-size: 0.78rem; font-weight: 700; padding: 3px 14px; border-radius: 14px; }
+        .auth-divider-text {
+            position: absolute; background-color: #242234; color: #d1d5db;
+            font-size: 0.78rem; font-weight: 700; padding: 3px 14px; border-radius: 14px;
+        }
         .auth-switch-link { color: #2e7d4e; font-size: 0.95rem; font-weight: 700; cursor: pointer; margin: 2px 0; text-align: center; }
-        .google-auth-btn { width: 100%; background-color: #ffffff; color: #111827; border: none; border-radius: 35px; padding: 13px 20px; font-size: 0.95rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .auth-rules-box { width: 100%; display: flex; flex-direction: column; gap: 3px; text-align: right; padding: 0 10px; color: #9ca3af; font-size: 0.78rem; font-weight: 600; line-height: 1.6; }
+        .google-auth-btn {
+            width: 100%; background-color: #ffffff; color: #111827; border: none;
+            border-radius: 35px; padding: 13px 20px; font-size: 0.95rem;
+            font-weight: 800; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 10px;
+        }
+        .auth-rules-box {
+            width: 100%; display: flex; flex-direction: column; gap: 3px;
+            text-align: right; padding: 0 10px; color: #9ca3af;
+            font-size: 0.78rem; font-weight: 600; line-height: 1.6;
+        }
         .auth-rule-row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-        .auth-close-btn { position: absolute; top: 20px; right: 20px; background: transparent; border: none; color: #9ca3af; font-size: 1.8rem; cursor: pointer; }
+        .auth-close-btn {
+            position: absolute; top: 20px; right: 20px; background: transparent;
+            border: none; color: #9ca3af; font-size: 1.8rem; cursor: pointer;
+        }
 
-        .notif-card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; position: relative; transition: border-color 0.2s; }
+        .notif-card {
+            background-color: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column;
+            gap: 6px; position: relative; transition: border-color 0.2s;
+        }
         .notif-card.unread { border-color: #38bdf8; background: linear-gradient(135deg, rgba(56,189,248,0.08) 0%, rgba(56,189,248,0.02) 100%); }
         .notif-card.success { border-right: 3px solid #4ade80; }
         .notif-card.error { border-right: 3px solid #ef4444; }
         .notif-card .notif-title { font-size: 0.9rem; font-weight: 800; color: var(--text-color); }
         .notif-card .notif-msg { font-size: 0.8rem; color: var(--subtext-color); font-weight: 600; }
         .notif-card .notif-time { font-size: 0.7rem; color: var(--subtext-color); direction: ltr; text-align: left; }
-        .notif-card .unread-dot { position: absolute; top: 14px; left: 14px; width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 8px rgba(56,189,248,0.6); }
+        .notif-card .unread-dot {
+            position: absolute; top: 14px; left: 14px; width: 8px; height: 8px;
+            border-radius: 50%; background: #38bdf8; box-shadow: 0 0 8px rgba(56,189,248,0.6);
+        }
 
-        .counter-qty-box { width: 100%; padding: 14px 18px; background-color: #1a1730; border: 1px solid #daa520; border-radius: 16px; color: #ffffff; font-size: 0.9rem; text-align: right; outline: none; transition: border-color 0.2s; }
+        .counter-qty-box {
+            width: 100%; padding: 14px 18px; background-color: #1a1730;
+            border: 1px solid #daa520; border-radius: 16px; color: #ffffff;
+            font-size: 0.9rem; text-align: right; outline: none;
+            transition: border-color 0.2s;
+        }
         .counter-qty-box:focus { border-color: #4ade80; }
         .counter-qty-box::placeholder { color: #787494; }
-        .counter-total-box { background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%); border: 1px solid #10b981; border-radius: 12px; padding: 10px 14px; display: none; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+        .counter-total-box {
+            background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+            border: 1px solid #10b981; border-radius: 12px; padding: 10px 14px;
+            display: none; flex-direction: column; align-items: center; gap: 4px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
         .counter-total-box.show { display: flex; }
         .counter-total-label { font-size: 0.72rem; color: #a7f3d0; font-weight: 600; }
         .counter-total-value { font-size: 1.3rem; font-weight: 800; color: #ffffff; direction: ltr; }
 
-        #completeProfileModal { background: linear-gradient(160deg, #0a0a1a 0%, #0f1b2d 100%); }
-        .cpm-box { background: linear-gradient(160deg, #12102a 0%, #1a1440 100%); border: 2px solid #daa520; border-radius: 24px; width: 100%; max-width: 400px; padding: 28px 22px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 20px 60px rgba(218, 165, 32, 0.35), 0 0 40px rgba(218, 165, 32, 0.15); position: relative; }
-        .cpm-title { font-size: 1.25rem; font-weight: 800; color: #daa520; text-align: center; letter-spacing: -0.3px; }
-        .cpm-subtitle { font-size: 0.8rem; color: #b0aec4; text-align: center; font-weight: 600; line-height: 1.5; margin-top: -8px; }
-        .cpm-field-label { font-size: 0.8rem; font-weight: 700; color: #daa520; text-align: right; margin-bottom: 6px; }
-        .cpm-phone-wrapper { position: relative; width: 100%; }
-        .cpm-phone-input { width: 100%; padding: 15px 55px 15px 18px; background-color: #0a0a1a; border: 1px solid #2e2850; border-radius: 16px; color: #ffffff; font-size: 0.95rem; text-align: right; outline: none; transition: border-color 0.2s; }
-        .cpm-phone-input:focus { border-color: #daa520; box-shadow: 0 0 12px rgba(218, 165, 32, 0.25); }
-        .cpm-phone-input::placeholder { color: #787494; }
-        .cpm-phone-prefix { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #daa520; font-size: 0.9rem; font-weight: 800; background: #0a0a1a; padding: 0 4px; border-left: 1px solid #2e2850; }
-        .cpm-currency-select { width: 100%; padding: 15px 18px; background-color: #0a0a1a; border: 1px solid #2e2850; border-radius: 16px; color: #ffffff; font-size: 0.95rem; text-align: right; outline: none; cursor: pointer; transition: border-color 0.2s; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23daa520'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: left 16px center; }
-        .cpm-currency-select:focus { border-color: #daa520; box-shadow: 0 0 12px rgba(218, 165, 32, 0.25); }
-        .cpm-currency-select option { background: #12102a; color: #ffffff; }
-        .cpm-submit-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%); border: none; border-radius: 16px; color: #000000; font-size: 1.05rem; font-weight: 800; cursor: pointer; box-shadow: 0 6px 20px rgba(218, 165, 32, 0.45); transition: transform 0.1s ease; margin-top: 4px; }
-        .cpm-submit-btn:active { transform: scale(0.97); }
-        .cpm-welcome-msg { position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #ffffff; padding: 14px 24px; border-radius: 14px; font-size: 0.9rem; font-weight: 800; text-align: center; z-index: 10002; box-shadow: 0 8px 25px rgba(34, 197, 94, 0.5); display: none; max-width: 90%; direction: rtl; }
-        .cpm-welcome-msg.show { display: block; animation: welcomePop 0.5s ease-out; }
-        @keyframes welcomePop { 0% { transform: translateX(-50%) translateY(-30px) scale(0.85); opacity: 0; } 100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; } }
+        #completeProfileModal {
+            background: linear-gradient(160deg, #0a0a1a 0%, #0f1b2d 100%);
+        }
+        .cpm-box {
+            background: linear-gradient(160deg, #12102a 0%, #1a1440 100%);
+            border: 2px solid #daa520;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 400px;
+            padding: 28px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            box-shadow: 0 20px 60px rgba(218, 165, 32, 0.35), 0 0 40px rgba(218, 165, 32, 0.15);
+            position: relative;
+        }
+        .cpm-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #daa520;
+            text-align: center;
+            letter-spacing: -0.3px;
+        }
+        .cpm-subtitle {
+            font-size: 0.8rem;
+            color: #b0aec4;
+            text-align: center;
+            font-weight: 600;
+            line-height: 1.5;
+            margin-top: -8px;
+        }
+        .cpm-field-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #daa520;
+            text-align: right;
+            margin-bottom: 6px;
+        }
+        .cpm-phone-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .cpm-phone-input {
+            width: 100%;
+            padding: 15px 55px 15px 18px;
+            background-color: #0a0a1a;
+            border: 1px solid #2e2850;
+            border-radius: 16px;
+            color: #ffffff;
+            font-size: 0.95rem;
+            text-align: right;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .cpm-phone-input:focus {
+            border-color: #daa520;
+            box-shadow: 0 0 12px rgba(218, 165, 32, 0.25);
+        }
+        .cpm-phone-input::placeholder {
+            color: #787494;
+        }
+        .cpm-phone-prefix {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #daa520;
+            font-size: 0.9rem;
+            font-weight: 800;
+            background: #0a0a1a;
+            padding: 0 4px;
+            border-left: 1px solid #2e2850;
+        }
+        .cpm-currency-select {
+            width: 100%;
+            padding: 15px 18px;
+            background-color: #0a0a1a;
+            border: 1px solid #2e2850;
+            border-radius: 16px;
+            color: #ffffff;
+            font-size: 0.95rem;
+            text-align: right;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23daa520'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: left 16px center;
+        }
+        .cpm-currency-select:focus {
+            border-color: #daa520;
+            box-shadow: 0 0 12px rgba(218, 165, 32, 0.25);
+        }
+        .cpm-currency-select option {
+            background: #12102a;
+            color: #ffffff;
+        }
+        .cpm-submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #d4af37 100%);
+            border: none;
+            border-radius: 16px;
+            color: #000000;
+            font-size: 1.05rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(218, 165, 32, 0.45);
+            transition: transform 0.1s ease;
+            margin-top: 4px;
+        }
+        .cpm-submit-btn:active {
+            transform: scale(0.97);
+        }
+        .cpm-welcome-msg {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+            color: #ffffff;
+            padding: 14px 24px;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            text-align: center;
+            z-index: 10002;
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.5);
+            display: none;
+            max-width: 90%;
+            direction: rtl;
+        }
+        .cpm-welcome-msg.show {
+            display: block;
+            animation: welcomePop 0.5s ease-out;
+        }
+        @keyframes welcomePop {
+            0% { transform: translateX(-50%) translateY(-30px) scale(0.85); opacity: 0; }
+            100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+        }
 
-        #maintenanceScreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(160deg, #050508 0%, #0a0a18 40%, #0d1117 100%); z-index: 999999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow: hidden; font-family: 'Cairo', sans-serif; }
-        #maintenanceScreen.active { display: flex; }
-        .maint-particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
-        .maint-particle { position: absolute; width: 4px; height: 4px; background: rgba(56, 189, 248, 0.3); border-radius: 50%; animation: maintFloat 8s infinite ease-in-out; }
+        /* ====== MAINTENANCE SCREEN ====== */
+        #maintenanceScreen {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(160deg, #050508 0%, #0a0a18 40%, #0d1117 100%);
+            z-index: 999999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            overflow: hidden;
+            font-family: 'Cairo', sans-serif;
+        }
+        #maintenanceScreen.active {
+            display: flex;
+        }
+        .maint-particles {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; overflow: hidden;
+        }
+        .maint-particle {
+            position: absolute;
+            width: 4px; height: 4px;
+            background: rgba(56, 189, 248, 0.3);
+            border-radius: 50%;
+            animation: maintFloat 8s infinite ease-in-out;
+        }
         .maint-particle:nth-child(1) { left: 10%; top: 20%; animation-delay: 0s; }
         .maint-particle:nth-child(2) { left: 25%; top: 60%; animation-delay: 1s; width: 6px; height: 6px; background: rgba(74, 222, 128, 0.25); }
         .maint-particle:nth-child(3) { left: 50%; top: 10%; animation-delay: 2s; }
@@ -1661,176 +2220,287 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         .maint-particle:nth-child(6) { left: 40%; top: 80%; animation-delay: 3s; width: 7px; height: 7px; background: rgba(168, 85, 247, 0.2); }
         .maint-particle:nth-child(7) { left: 60%; top: 45%; animation-delay: 2.5s; }
         .maint-particle:nth-child(8) { left: 15%; top: 85%; animation-delay: 1.8s; background: rgba(56, 189, 248, 0.2); }
-        @keyframes maintFloat { 0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; } 50% { transform: translateY(-30px) scale(1.8); opacity: 0.7; } }
-        .maint-gears { position: relative; width: 120px; height: 120px; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; }
-        .maint-gear { position: absolute; font-size: 3.2rem; animation: maintSpin 4s linear infinite; }
-        .maint-gear.big { font-size: 4rem; color: #38bdf8; text-shadow: 0 0 30px rgba(56, 189, 248, 0.6); animation-duration: 6s; }
-        .maint-gear.small { font-size: 2.2rem; color: #4ade80; text-shadow: 0 0 20px rgba(74, 222, 128, 0.5); animation-direction: reverse; animation-duration: 4s; margin-top: 30px; margin-right: 50px; }
-        @keyframes maintSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .maint-logo-box { position: relative; margin-bottom: 25px; }
-        .maint-logo-box img { width: 100px; height: 100px; border-radius: 24px; object-fit: cover; border: 2px solid rgba(56, 189, 248, 0.3); box-shadow: 0 0 40px rgba(56, 189, 248, 0.2), 0 0 80px rgba(56, 189, 248, 0.1); animation: maintPulse 3s ease-in-out infinite; }
-        @keyframes maintPulse { 0%, 100% { box-shadow: 0 0 40px rgba(56, 189, 248, 0.2), 0 0 80px rgba(56, 189, 248, 0.1); transform: scale(1); } 50% { box-shadow: 0 0 60px rgba(56, 189, 248, 0.4), 0 0 120px rgba(56, 189, 248, 0.2); transform: scale(1.05); } }
-        .maint-title { font-size: 1.4rem; font-weight: 800; color: #ffffff; text-align: center; margin-bottom: 12px; letter-spacing: -0.5px; background: linear-gradient(135deg, #38bdf8, #4ade80, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; background-size: 200% auto; animation: maintGradient 3s ease infinite; }
-        @keyframes maintGradient { 0% { background-position: 0% center; } 50% { background-position: 100% center; } 100% { background-position: 0% center; } }
-        .maint-message { font-size: 0.95rem; color: #a1a1aa; text-align: center; line-height: 1.8; max-width: 340px; font-weight: 600; margin-bottom: 25px; }
-        .maint-progress-wrapper { width: 280px; max-width: 85%; margin-bottom: 20px; }
-        .maint-progress-track { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; position: relative; }
-        .maint-progress-bar { height: 100%; width: 40%; background: linear-gradient(90deg, #38bdf8, #4ade80, #38bdf8); border-radius: 3px; animation: maintProgress 2s ease-in-out infinite; background-size: 200% 100%; }
-        @keyframes maintProgress { 0% { transform: translateX(0); background-position: 0% center; } 100% { transform: translateX(250%); background-position: 200% center; } }
-        .maint-status-dots { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
-        .maint-dot { width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; animation: maintDot 1.4s ease-in-out infinite; }
+        @keyframes maintFloat {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+            50% { transform: translateY(-30px) scale(1.8); opacity: 0.7; }
+        }
+        .maint-gears {
+            position: relative;
+            width: 120px; height: 120px;
+            margin-bottom: 30px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .maint-gear {
+            position: absolute;
+            font-size: 3.2rem;
+            animation: maintSpin 4s linear infinite;
+        }
+        .maint-gear.big {
+            font-size: 4rem;
+            color: #38bdf8;
+            text-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
+            animation-duration: 6s;
+        }
+        .maint-gear.small {
+            font-size: 2.2rem;
+            color: #4ade80;
+            text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+            animation-direction: reverse;
+            animation-duration: 4s;
+            margin-top: 30px; margin-right: 50px;
+        }
+        @keyframes maintSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .maint-logo-box {
+            position: relative;
+            margin-bottom: 25px;
+        }
+        .maint-logo-box img {
+            width: 100px; height: 100px;
+            border-radius: 24px;
+            object-fit: cover;
+            border: 2px solid rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.2), 0 0 80px rgba(56, 189, 248, 0.1);
+            animation: maintPulse 3s ease-in-out infinite;
+        }
+        @keyframes maintPulse {
+            0%, 100% { box-shadow: 0 0 40px rgba(56, 189, 248, 0.2), 0 0 80px rgba(56, 189, 248, 0.1); transform: scale(1); }
+            50% { box-shadow: 0 0 60px rgba(56, 189, 248, 0.4), 0 0 120px rgba(56, 189, 248, 0.2); transform: scale(1.05); }
+        }
+        .maint-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #38bdf8, #4ade80, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            background-size: 200% auto;
+            animation: maintGradient 3s ease infinite;
+        }
+        @keyframes maintGradient {
+            0% { background-position: 0% center; }
+            50% { background-position: 100% center; }
+            100% { background-position: 0% center; }
+        }
+        .maint-message {
+            font-size: 0.95rem;
+            color: #a1a1aa;
+            text-align: center;
+            line-height: 1.8;
+            max-width: 340px;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        .maint-progress-wrapper {
+            width: 280px;
+            max-width: 85%;
+            margin-bottom: 20px;
+        }
+        .maint-progress-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+        .maint-progress-bar {
+            height: 100%;
+            width: 40%;
+            background: linear-gradient(90deg, #38bdf8, #4ade80, #38bdf8);
+            border-radius: 3px;
+            animation: maintProgress 2s ease-in-out infinite;
+            background-size: 200% 100%;
+        }
+        @keyframes maintProgress {
+            0% { transform: translateX(0); background-position: 0% center; }
+            100% { transform: translateX(250%); background-position: 200% center; }
+        }
+        .maint-status-dots {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .maint-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #38bdf8;
+            animation: maintDot 1.4s ease-in-out infinite;
+        }
         .maint-dot:nth-child(2) { animation-delay: 0.2s; background: #4ade80; }
         .maint-dot:nth-child(3) { animation-delay: 0.4s; background: #f59e0b; }
-        @keyframes maintDot { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.3); } }
-        .maint-footer { position: absolute; bottom: 30px; font-size: 0.75rem; color: #52525b; text-align: center; font-weight: 600; direction: ltr; letter-spacing: 1px; }
-        .maint-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; padding: 6px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; margin-bottom: 18px; animation: maintBadgePulse 2s ease-in-out infinite; }
-        @keyframes maintBadgePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); } 50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); } }
+        @keyframes maintDot {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.3); }
+        }
+        .maint-footer {
+            position: absolute;
+            bottom: 30px;
+            font-size: 0.75rem;
+            color: #52525b;
+            text-align: center;
+            font-weight: 600;
+            direction: ltr;
+            letter-spacing: 1px;
+        }
+        .maint-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 18px;
+            animation: maintBadgePulse 2s ease-in-out infinite;
+        }
+        @keyframes maintBadgePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); }
+            50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+        }
 
-        .group-item-card { background: transparent; border: none; display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 0; width: 100%; position: relative; }
-        .group-item-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 14px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); background-color: var(--card-bg); transition: transform 0.15s ease; }
-        .group-item-card:active .group-item-img { transform: scale(0.95); }
-        .group-item-label { width: 100%; padding: 6px 2px 0 2px; text-align: center; font-size: 0.82rem; font-weight: 700; color: var(--item-label-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        #pwaInstallBanner { display: none; position: fixed; bottom: calc(var(--bottom-nav-height) + 10px); left: 50%; transform: translateX(-50%); width: 92%; max-width: 400px; background: linear-gradient(135deg, #00897b 0%, #26a69a 100%); border-radius: 16px; padding: 14px 18px; box-shadow: 0 8px 25px rgba(0, 137, 123, 0.4); z-index: 9000; align-items: center; gap: 12px; }
-        #pwaInstallBanner.active { display: flex; }
-        #pwaInstallIcon { width: 48px; height: 48px; border-radius: 12px; border: 2px solid #fff; }
-        .pwa-banner-text { flex: 1; display: flex; flex-direction: column; gap: 3px; }
-        .pwa-banner-title { font-size: 0.9rem; font-weight: 800; color: #fff; }
-        .pwa-banner-desc { font-size: 0.72rem; color: #d1fae5; }
-        .pwa-install-btn { background: #fff; color: #00897b; border: none; border-radius: 10px; padding: 8px 14px; font-size: 0.8rem; font-weight: 800; cursor: pointer; }
-        .pwa-dismiss-btn { background: transparent; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; padding: 0 4px; }
-
-        #pwaSplashScreen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #050508; z-index: 999999; flex-direction: column; align-items: center; justify-content: center; gap: 24px; }
-        #pwaSplashScreen.active { display: flex; }
-        #pwaSplashImg { width: 150px; height: 150px; border-radius: 30px; object-fit: cover; box-shadow: 0 0 60px rgba(0, 137, 123, 0.5); animation: pwaSplashPulse 2s ease-in-out infinite; }
-        @keyframes pwaSplashPulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(0, 137, 123, 0.5); } 50% { transform: scale(1.05); box-shadow: 0 0 80px rgba(0, 137, 123, 0.8); } }
-        .pwa-splash-title { font-size: 1.4rem; font-weight: 800; color: #fff; }
-
-        #autoDepositMethodPage { display: none; flex-direction: column; gap: 14px; width: 100%; padding: 0 15px; }
-
-        .auto-deposit-verify-btn {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+        /* ====== SUBCATEGORY GROUP STYLES ====== */
+        .group-item-card {
+            background: transparent;
             border: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            padding: 0;
+            width: 100%;
+            position: relative;
+        }
+        .group-item-img {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+            border-radius: 14px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background-color: var(--card-bg);
+            transition: transform 0.15s ease;
+        }
+        .group-item-card:active .group-item-img {
+            transform: scale(0.95);
+        }
+        .group-item-label {
+            width: 100%;
+            padding: 6px 2px 0 2px;
+            text-align: center;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--item-label-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ====== PWA Install Banner ====== */
+        #pwaInstallBanner {
+            display: none;
+            position: fixed;
+            bottom: calc(var(--bottom-nav-height) + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            max-width: 400px;
+            background: linear-gradient(135deg, #00897b 0%, #26a69a 100%);
             border-radius: 16px;
-            color: #ffffff;
-            font-size: 1.05rem;
+            padding: 14px 18px;
+            box-shadow: 0 8px 25px rgba(0, 137, 123, 0.4);
+            z-index: 9000;
+            align-items: center;
+            gap: 12px;
+        }
+        #pwaInstallBanner.active {
+            display: flex;
+        }
+        #pwaInstallIcon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            border: 2px solid #fff;
+        }
+        .pwa-banner-text {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .pwa-banner-title {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: #fff;
+        }
+        .pwa-banner-desc {
+            font-size: 0.72rem;
+            color: #d1fae5;
+        }
+        .pwa-install-btn {
+            background: #fff;
+            color: #00897b;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 0.8rem;
             font-weight: 800;
             cursor: pointer;
-            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.45);
-            transition: transform 0.1s ease;
-            margin-top: 5px;
         }
-        .auto-deposit-verify-btn:active { transform: scale(0.97); }
-        .auto-deposit-verify-btn:disabled {
-            background: #3f3f46;
-            color: #a1a1aa;
-            box-shadow: none;
-            cursor: not-allowed;
+        .pwa-dismiss-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 0 4px;
         }
 
-        #autoDepositSuccessScreen {
+        /* ====== PWA Splash Screen ====== */
+        #pwaSplashScreen {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(160deg, #050508 0%, #0a0a18 40%, #0d1117 100%);
-            z-index: 99999;
+            background: #050508;
+            z-index: 999999;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 24px;
-            gap: 20px;
+            gap: 24px;
         }
-        #autoDepositSuccessScreen.active {
+        #pwaSplashScreen.active {
             display: flex;
         }
-        .auto-success-check {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 40px rgba(34, 197, 94, 0.5), 0 0 80px rgba(34, 197, 94, 0.2);
-            animation: successPop 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+        #pwaSplashImg {
+            width: 150px;
+            height: 150px;
+            border-radius: 30px;
+            object-fit: cover;
+            box-shadow: 0 0 60px rgba(0, 137, 123, 0.5);
+            animation: pwaSplashPulse 2s ease-in-out infinite;
         }
-        @keyframes successPop {
-            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
-            60% { transform: scale(1.15) rotate(10deg); opacity: 1; }
-            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        @keyframes pwaSplashPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(0, 137, 123, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 80px rgba(0, 137, 123, 0.8); }
         }
-        .auto-success-check svg {
-            width: 60px;
-            height: 60px;
-            stroke: #ffffff;
-            stroke-width: 4;
-            fill: none;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            stroke-dasharray: 100;
-            stroke-dashoffset: 100;
-            animation: drawCheck 0.5s ease-out 0.4s forwards;
-        }
-        @keyframes drawCheck {
-            0% { stroke-dashoffset: 100; }
-            100% { stroke-dashoffset: 0; }
-        }
-        .auto-success-title {
-            font-size: 1.3rem;
+        .pwa-splash-title {
+            font-size: 1.4rem;
             font-weight: 800;
-            color: #ffffff;
-            text-align: center;
-            background: linear-gradient(135deg, #4ade80, #22c55e);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: fadeInUp 0.5s ease-out 0.6s forwards;
-            opacity: 0;
+            color: #fff;
         }
-        @keyframes fadeInUp {
-            0% { opacity: 0; transform: translateY(20px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
-        .auto-success-message {
-            font-size: 1rem;
-            color: #d1fae5;
-            text-align: center;
-            font-weight: 700;
-            line-height: 1.7;
-            max-width: 320px;
-            animation: fadeInUp 0.5s ease-out 0.8s forwards;
-            opacity: 0;
-        }
-        .auto-success-balance {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: #4ade80;
-            direction: ltr;
-            text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
-            animation: fadeInUp 0.5s ease-out 1s forwards;
-            opacity: 0;
-        }
-        .auto-success-back-btn {
-            padding: 14px 40px;
-            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
-            border: none;
-            border-radius: 16px;
-            color: #ffffff;
-            font-size: 1rem;
-            font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
-            margin-top: 10px;
-            animation: fadeInUp 0.5s ease-out 1.2s forwards;
-            opacity: 0;
-            transition: transform 0.1s ease;
-        }
-        .auto-success-back-btn:active { transform: scale(0.97); }
     </style>
 </head>
 <body>
@@ -2444,38 +3114,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- Auto Deposit Method Page -->
-    <div id="autoDepositMethodPage">
-        <div class="section-header">
-            <span style="font-size:0.95rem; font-weight:800; color:var(--accent-color);" id="autoDepTitle">طريقة الإيداع التلقائي</span>
-            <button class="back-btn" style="display:block;" onclick="closeAutoDepositMethodPage()">رجوع</button>
-        </div>
-        <div class="dep-desc-box" id="autoDepDesc" style="font-size:0.85rem;">وصف الطريقة</div>
-        <div style="display:flex; flex-direction:column; gap:10px; margin-top:5px;">
-            <input type="number" id="autoDepAmountInput" class="purchase-input-custom" placeholder="ادخل المبلغ" step="0.01">
-            <div style="font-size:0.7rem; color:var(--subtext-color); text-align:right; margin-top:-5px;">ادخل المبلغ بشكل صحيح ليتم تأكيد العملية فوراً</div>
-            <input type="text" id="autoDepTxIdInput" class="purchase-input-custom" placeholder="ادخل رقم العملية">
-            <div style="font-size:0.7rem; color:var(--subtext-color); text-align:right; margin-top:-5px;">ادخل رقم العملية من سجلات التحويلات</div>
-        </div>
-        <button class="auto-deposit-verify-btn" id="autoDepVerifyBtn" onclick="verifyAutoDeposit()">التحقق من العملية</button>
-    </div>
-
-    <!-- Auto Deposit Success Screen -->
-    <div id="autoDepositSuccessScreen">
-        <div class="auto-success-check">
-            <svg viewBox="0 0 52 52">
-                <path d="M14 27l8 8 16-16"/>
-            </svg>
-        </div>
-        <div class="auto-success-title">تمت العملية بنجاح!</div>
-        <div class="auto-success-message" id="autoSuccessMsg">
-            تمت عملية تطابق المبلغ بنجاح<br>
-            تمت عملية ايداع رصيد التلقائي لحسابك
-        </div>
-        <div class="auto-success-balance" id="autoSuccessBalance">0.000 $</div>
-        <button class="auto-success-back-btn" onclick="closeAutoDepositSuccess()">رجوع للصفحة الرئيسية</button>
-    </div>
-
     <!-- PWA Install Banner -->
     <div id="pwaInstallBanner">
         <img id="pwaInstallIcon" src="" alt="App Icon" />
@@ -2519,7 +3157,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         let selectedProduct = '';
         let activeSubCategory = null;
         let activeDepositMethod = null;
-        let activeAutoDepositMethod = null;
         let currentStatusFilter = 'all';
         let currentTypeFilter = 'all';
         let currentNotifFilter = 'all';
@@ -2532,7 +3169,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             products: [],
             subcategories: [],
             depositMethods: [],
-            autoDepositMethods: [],
             userOrders: [],
             userDeposits: [],
             userNotifications: [],
@@ -2552,6 +3188,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');
 
+        // ====== MAINTENANCE CHECK ======
         async function checkMaintenanceMode() {
             try {
                 const res = await fetch('/api/maintenance_status');
@@ -2582,15 +3219,18 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
         checkMaintenanceMode();
         setInterval(checkMaintenanceMode, 15000);
 
+        // ====== END MAINTENANCE CHECK ======
+
         async function applyAppearanceSettings() {
             try {
                 const res = await fetch('/api/get_appearance_settings');
                 const a = await res.json();
                 const root = document.documentElement;
                 
+                // الخط
                 if (a.font_family) {
-                    const familyString = a.font_family.replace(/ /g, '+');
                     const fontLink = document.getElementById('dynamicFontLink');
+                    const familyString = a.font_family.replace(/ /g, '+');
                     if (fontLink) {
                         fontLink.href = `https://fonts.googleapis.com/css2?family=${familyString}:wght@400;500;600;700;800;900&display=swap`;
                     }
@@ -2601,6 +3241,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                     }
                 }
                 
+                // ألوان الهيدر
                 if (a.top_header_color1) root.style.setProperty('--top-header-c1', a.top_header_color1);
                 if (a.top_header_color2) root.style.setProperty('--top-header-c2', a.top_header_color2);
                 if (a.top_header_color3) root.style.setProperty('--top-header-c3', a.top_header_color3);
@@ -2608,6 +3249,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 if (a.bottom_nav_color2) root.style.setProperty('--bottom-nav-c2', a.bottom_nav_color2);
                 if (a.bottom_nav_color3) root.style.setProperty('--bottom-nav-c3', a.bottom_nav_color3);
                 
+                // الأحجام
                 if (a.general_font_size) root.style.setProperty('--general-font-size', a.general_font_size + 'px');
                 if (a.sidebar_font_size) root.style.setProperty('--sidebar-font-size', a.sidebar_font_size + 'px');
                 if (a.top_header_height) root.style.setProperty('--top-header-height', a.top_header_height + 'px');
@@ -2616,6 +3258,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 if (a.deposit_card_size) root.style.setProperty('--deposit-card-scale', (a.deposit_card_size / 100).toFixed(2));
                 if (a.category_card_size) root.style.setProperty('--category-card-scale', (a.category_card_size / 100).toFixed(2));
 
+                // ===== ألوان الوضع الداكن =====
                 if (a.dark_bg_color) root.style.setProperty('--dark-bg-color', a.dark_bg_color);
                 if (a.dark_card_bg) root.style.setProperty('--dark-card-bg', a.dark_card_bg);
                 if (a.dark_border_color) root.style.setProperty('--dark-border-color', a.dark_border_color);
@@ -2624,6 +3267,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 if (a.dark_sidebar_bg) root.style.setProperty('--dark-sidebar-bg', a.dark_sidebar_bg);
                 if (a.dark_input_bg) root.style.setProperty('--dark-input-bg', a.dark_input_bg);
 
+                // ===== ألوان الوضع الفاتح =====
                 if (a.light_bg_color) root.style.setProperty('--light-bg-color', a.light_bg_color);
                 if (a.light_card_bg) root.style.setProperty('--light-card-bg', a.light_card_bg);
                 if (a.light_border_color) root.style.setProperty('--light-border-color', a.light_border_color);
@@ -2633,8 +3277,10 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 if (a.light_input_bg) root.style.setProperty('--light-input-bg', a.light_input_bg);
                 if (a.light_accent_color) root.style.setProperty('--light-accent-color', a.light_accent_color);
 
+                // تطبيق الوضع الحالي
                 applyCurrentTheme();
 
+                // ===== PWA =====
                 if (a.pwa_name) {
                     const appNameMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
                     if (appNameMeta) appNameMeta.content = a.pwa_name;
@@ -2646,6 +3292,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             } catch (e) { console.error('فشل تحميل إعدادات المظهر', e); }
         }
 
+        // تطبيق الثيم الحالي (داكن أو فاتح)
         function applyCurrentTheme() {
             const isLight = document.body.classList.contains('light-mode');
             const root = document.documentElement;
@@ -3356,12 +4003,11 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
 
         async function initData() {
             try {
-                const [cRes, pRes, sRes, dRes, adRes, cbRes, sgRes] = await Promise.all([
+                const [cRes, pRes, sRes, dRes, cbRes, sgRes] = await Promise.all([
                     fetch('/api/categories'),
                     fetch('/api/products'),
                     fetch('/api/subcategories'),
                     fetch('/api/get_deposit_methods'),
-                    fetch('/api/get_auto_deposit_methods'),
                     fetch('/api/category_banners'),
                     fetch('/api/get_subcategory_groups')
                 ]);
@@ -3369,7 +4015,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 dataStore.products = await pRes.json();
                 dataStore.subcategories = await sRes.json();
                 dataStore.depositMethods = await dRes.json();
-                dataStore.autoDepositMethods = await adRes.json();
                 dataStore.categoryBanners = await cbRes.json();
                 subcategoryGroups = await sgRes.json();
                 await loadCurrencies();
@@ -3408,7 +4053,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             closeMyDepositsPage();
             closeMyWalletPage();
             closeNotificationsPage();
-            closeAutoDepositMethodPage();
             currentGroupId = null;
             renderCategories();
         }
@@ -3616,7 +4260,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myOrdersPage').style.display = 'none';
             document.getElementById('myDepositsPage').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'none';
-            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'flex';
@@ -3977,17 +4620,12 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myDepositsPage').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'none';
-            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('depositPage').style.display = 'flex';
 
-            const [resManual, resAuto] = await Promise.all([
-                fetch('/api/get_deposit_methods'),
-                fetch('/api/get_auto_deposit_methods')
-            ]);
-            dataStore.depositMethods = await resManual.json();
-            dataStore.autoDepositMethods = await resAuto.json();
+            const res = await fetch('/api/get_deposit_methods');
+            dataStore.depositMethods = await res.json();
             renderDepositMethods();
         }
 
@@ -4005,12 +4643,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             const grid = document.getElementById('depositMethodsGrid');
             grid.innerHTML = '';
 
-            const allMethods = [
-                ...dataStore.autoDepositMethods.filter(m => m.enabled).map(m => ({ ...m, is_auto: true })),
-                ...dataStore.depositMethods.map(m => ({ ...m, is_auto: false }))
-            ];
-
-            const filtered = allMethods.filter(m => 
+            const filtered = dataStore.depositMethods.filter(m => 
                 m.name.toLowerCase().includes(searchQ) || 
                 (m.description && m.description.toLowerCase().includes(searchQ))
             );
@@ -4024,19 +4657,10 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.style.transform = `scale(var(--deposit-card-scale))`;
-                card.onclick = () => {
-                    if (m.is_auto) {
-                        openAutoDepositMethodPage(m);
-                    } else {
-                        openDepositDetailModal(m);
-                    }
-                };
+                card.onclick = () => openDepositDetailModal(m);
 
                 let imgHTML = m.image ? `<img src="${m.image}" class="item-img" />` : `<div class="item-img" style="display:flex;align-items:center;justify-content:center;color:#666;">💳</div>`;
                 card.innerHTML = `${imgHTML}<div class="item-label" style="color:var(--deposit-label-color);">${m.name}</div>`;
-                if (m.is_auto) {
-                    card.innerHTML += `<div style="font-size:0.6rem; color:#4ade80; font-weight:800; margin-top:2px;">✓ تلقائي</div>`;
-                }
                 grid.appendChild(card);
             });
         }
@@ -4139,96 +4763,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             }
         }
 
-        function openAutoDepositMethodPage(method) {
-            if (document.getElementById('sidebar').classList.contains('active')) { toggleSidebar(); }
-            activeAutoDepositMethod = method;
-            
-            document.getElementById('shopMainSection').style.display = 'none';
-            document.getElementById('depositPage').style.display = 'none';
-            document.getElementById('myOrdersPage').style.display = 'none';
-            document.getElementById('myDepositsPage').style.display = 'none';
-            document.getElementById('myWalletPage').style.display = 'none';
-            document.getElementById('myNotificationsPage').style.display = 'none';
-            document.getElementById('bannerContainer').style.display = 'none';
-            document.getElementById('tickerWrapper').style.display = 'none';
-            
-            document.getElementById('autoDepTitle').innerText = method.name;
-            document.getElementById('autoDepDesc').innerText = method.description || 'وصف الطريقة';
-            document.getElementById('autoDepAmountInput').value = '';
-            document.getElementById('autoDepTxIdInput').value = '';
-            document.getElementById('autoDepVerifyBtn').disabled = false;
-            document.getElementById('autoDepVerifyBtn').innerText = 'التحقق من العملية';
-            
-            document.getElementById('autoDepositMethodPage').style.display = 'flex';
-        }
-
-        function closeAutoDepositMethodPage() {
-            document.getElementById('autoDepositMethodPage').style.display = 'none';
-            document.getElementById('depositPage').style.display = 'flex';
-        }
-
-        async function verifyAutoDeposit() {
-            if (!activeAutoDepositMethod) return;
-            
-            const amount = document.getElementById('autoDepAmountInput').value.trim();
-            const txId = document.getElementById('autoDepTxIdInput').value.trim();
-            
-            if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-                alert('يرجى إدخال المبلغ بشكل صحيح!');
-                return;
-            }
-            if (!txId) {
-                alert('يرجى إدخال رقم العملية!');
-                return;
-            }
-            
-            const savedEmail = localStorage.getItem('loggedInUserEmail');
-            if (!savedEmail) {
-                alert('يرجى تسجيل الدخول أولاً!');
-                return;
-            }
-            
-            const btn = document.getElementById('autoDepVerifyBtn');
-            btn.disabled = true;
-            btn.innerHTML = 'جاري التحقق... <span class="btn-spinner"></span>';
-            
-            try {
-                const res = await fetch('/api/verify_auto_deposit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: savedEmail,
-                        method_id: activeAutoDepositMethod.id,
-                        amount: parseFloat(amount),
-                        tx_id: txId
-                    })
-                });
-                
-                const data = await res.json();
-                
-                if (data.status === 'success') {
-                    document.getElementById('autoDepositMethodPage').style.display = 'none';
-                    document.getElementById('autoDepositSuccessScreen').classList.add('active');
-                    document.getElementById('autoSuccessBalance').innerText = formatBalance(data.new_balance) + ' $';
-                    
-                    applyLoggedInState(savedEmail, data.new_balance, data.user_id);
-                } else {
-                    alert(data.message || 'العملية غير موجودة، تأكد من رقم العملية والمبلغ.');
-                    btn.disabled = false;
-                    btn.innerText = 'التحقق من العملية';
-                }
-            } catch (e) {
-                alert('فشل الاتصال بالخادم!');
-                btn.disabled = false;
-                btn.innerText = 'التحقق من العملية';
-            }
-        }
-
-        function closeAutoDepositSuccess() {
-            document.getElementById('autoDepositSuccessScreen').classList.remove('active');
-            closeAutoDepositMethodPage();
-        }
-
         async function openMyDepositsPage() {
             if (document.getElementById('sidebar').classList.contains('active')) { toggleSidebar(); }
             document.getElementById('shopMainSection').style.display = 'none';
@@ -4236,7 +4770,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myOrdersPage').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'none';
-            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('myDepositsPage').style.display = 'flex';
@@ -4299,7 +4832,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myDepositsPage').style.display = 'none';
             document.getElementById('myOrdersPage').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'none';
-            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'flex';
@@ -4587,7 +5119,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById('myDepositsPage').style.display = 'none';
             document.getElementById('myWalletPage').style.display = 'none';
             document.getElementById('myNotificationsPage').style.display = 'none';
-            document.getElementById('autoDepositMethodPage').style.display = 'none';
             document.getElementById('bannerContainer').style.display = 'none';
             document.getElementById('tickerWrapper').style.display = 'none';
             document.getElementById('myOrdersPage').style.display = 'flex';
@@ -4736,12 +5267,14 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             });
         }
 
+        // ====== PWA INSTALLATION ======
         let deferredPrompt = null;
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             
+            // لا تظهر البانر إذا تم إغلاقه سابقاً
             if (!localStorage.getItem('pwaBannerDismissed')) {
                 setTimeout(() => {
                     const banner = document.getElementById('pwaInstallBanner');
@@ -4780,6 +5313,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             localStorage.setItem('pwaBannerDismissed', 'true');
         }
 
+        // عرض شاشة الترحيب عند فتح التطبيق المثبت
         if (window.matchMedia('(display-mode: standalone)').matches) {
             const splash = document.getElementById('pwaSplashScreen');
             const splashImg = document.getElementById('pwaSplashImg');
@@ -4801,6 +5335,7 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
             }
         }
 
+        // تسجيل Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
@@ -4822,8 +5357,6 @@ USER_HTML_CONTENT = """<!DOCTYPE html>
 </body>
 </html>
 """
-
-
 # --------------------------------------------------
 # 3. واجهة الإدمن الخاصة
 # --------------------------------------------------
@@ -4911,7 +5444,27 @@ ADMIN_HTML_CONTENT = """
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 10px 5px; }
         .category-card { background-color: #121212; border: 1px solid #27272a; border-radius: 10px; aspect-ratio: 1 / 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding: 5px; overflow: hidden; position: relative; transform: scale(1.1); transform-origin: center; }
         .category-img { width: 100%; height: calc(100% - 28px); object-fit: cover; border-radius: 6px 6px 0 0; position: absolute; top: 0; left: 0; }
-        .category-label { width: 100%; background-color: #000000; border: 1px solid #27272a; border-radius: 6px; padding: 4px 2px; text-align: center; font-size: 0.72rem; font-weight: 700; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 2; }
+        .category-label {
+            width: 100%;
+            background-color: #000000;
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            padding: 4px 2px;
+            text-align: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #ffffff;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            z-index: 2;
+            line-height: 1.3;
+            max-height: 2.6em;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            word-break: break-word;
+        }
         .success-circle-box { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px 5px; gap: 12px; text-align: center; }
         .success-circle { width: 65px; height: 65px; border-radius: 50%; background-color: rgba(74, 222, 128, 0.15); border: 2px solid #4ade80; display: flex; align-items: center; justify-content: center; color: #4ade80; font-size: 2rem; box-shadow: 0 0 15px rgba(74, 222, 128, 0.3); }
         .success-text-sub { font-size: 0.88rem; font-weight: 700; color: #ffffff; line-height: 1.5; }
@@ -4943,7 +5496,27 @@ ADMIN_HTML_CONTENT = """
         .api-category-card:hover { border-color: #4ade80; box-shadow: 0 0 15px rgba(74, 222, 128, 0.3); }
         .api-category-img { width: 100%; height: calc(100% - 30px); object-fit: cover; border-radius: 8px 8px 0 0; position: absolute; top: 0; left: 0; }
         .api-category-placeholder { width: 100%; height: calc(100% - 30px); display: flex; align-items: center; justify-content: center; color: #666; font-size: 1.5rem; position: absolute; top: 0; left: 0; }
-        .api-category-label { width: 100%; background: #000; border: 1px solid #27272a; border-radius: 6px; padding: 5px 3px; text-align: center; font-size: 0.75rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 2; }
+        .api-category-label {
+            width: 100%;
+            background: #000;
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            padding: 5px 3px;
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #fff;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            z-index: 2;
+            line-height: 1.3;
+            max-height: 2.6em;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            word-break: break-word;
+        }
         .api-category-actions { display: flex; gap: 6px; width: 100%; margin-top: 6px; z-index: 3; position: relative; }
         .api-action-btn { flex: 1; padding: 6px 4px; border-radius: 6px; font-size: 0.65rem; font-weight: 800; cursor: pointer; text-align: center; border: none; transition: all 0.2s; }
         .api-action-btn.import-btn { background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: #fff; }
@@ -5031,6 +5604,7 @@ ADMIN_HTML_CONTENT = """
         .maint-active-banner .icon { font-size: 1.3rem; }
         .maint-active-banner .text { font-size: 0.85rem; font-weight: 700; color: #fff; }
 
+        /* Subcategory Group Styles */
         .group-item-card-admin { background-color: #121212; border: 1px solid #27272a; border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .group-item-card-admin .g-name { font-size: 0.9rem; font-weight: 700; color: #a855f7; }
         .group-item-card-admin .g-count { font-size: 0.75rem; color: #a1a1aa; }
@@ -5043,85 +5617,6 @@ ADMIN_HTML_CONTENT = """
         .group-selector-box select { width: 100%; padding: 10px; background: #121212; border: 1px solid #27272a; border-radius: 6px; color: #fff; font-size: 0.85rem; }
         .group-selector-box .add-group-btn { margin-top: 8px; width: 100%; padding: 10px; background: linear-gradient(135deg, #a855f7, #9333ea); border: none; border-radius: 8px; color: #fff; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
         .group-badge { display: inline-block; background: linear-gradient(135deg, #a855f7, #9333ea); color: #fff; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 8px; margin-right: 4px; }
-
-        /* Auto Deposit Admin Styles */
-        .auto-deposit-list-item { background-color: #121212; border: 1px solid #27272a; border-radius: 14px; padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; transition: border-color 0.2s; }
-        .auto-deposit-list-item:hover { border-color: #38bdf8; }
-        .auto-deposit-name { font-size: 1rem; font-weight: 800; color: #ffffff; }
-        .auto-deposit-status { font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 10px; }
-        .auto-deposit-status.enabled { background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #4ade80; }
-        .auto-deposit-status.disabled { background: rgba(248, 113, 113, 0.15); color: #f87171; border: 1px solid #f87171; }
-        .auto-deposit-edit-btn { background: transparent; border: 1px solid #38bdf8; border-radius: 8px; color: #38bdf8; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-        .auto-deposit-edit-btn:hover { background: rgba(56, 189, 248, 0.1); }
-        .auto-deposit-edit-btn svg { width: 20px; height: 20px; fill: currentColor; }
-
-        #autoDepositAdminScreen {
-            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #050508; z-index: 99999; overflow-y: auto; padding: 20px;
-            flex-direction: column; gap: 15px;
-        }
-        #autoDepositAdminScreen.active { display: flex; }
-
-        .auto-edit-form-box { background: #121212; border: 1px solid #27272a; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-        .auto-edit-field { display: flex; flex-direction: column; gap: 6px; }
-        .auto-edit-field label { font-size: 0.78rem; color: #a1a1aa; font-weight: 700; }
-        .auto-edit-field input, .auto-edit-field textarea, .auto-edit-field select {
-            background-color: #000; border: 1px solid #27272a; color: #fff;
-            padding: 12px 14px; border-radius: 10px; font-size: 0.85rem; outline: none;
-            width: 100%; transition: border-color 0.2s;
-        }
-        .auto-edit-field input:focus, .auto-edit-field textarea:focus, .auto-edit-field select:focus {
-            border-color: #38bdf8;
-        }
-        .auto-edit-field textarea { resize: vertical; min-height: 70px; }
-
-        .auto-deposit-verify-btn-admin {
-            width: 100%; padding: 16px;
-            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
-            border: none; border-radius: 14px; color: #ffffff;
-            font-size: 1.05rem; font-weight: 800; cursor: pointer;
-            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
-            margin-top: 10px;
-        }
-        .auto-deposit-verify-btn-admin:active { transform: scale(0.97); }
-
-        #autoSuccessScreenAdmin {
-            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: linear-gradient(160deg, #050508 0%, #0a0a18 40%, #0d1117 100%);
-            z-index: 100000; flex-direction: column; align-items: center; justify-content: center;
-            padding: 24px; gap: 20px;
-        }
-        #autoSuccessScreenAdmin.active { display: flex; }
-        .auto-success-check-admin {
-            width: 120px; height: 120px; border-radius: 50%;
-            background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 40px rgba(34, 197, 94, 0.5);
-            animation: successPopAdmin 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
-        }
-        @keyframes successPopAdmin {
-            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
-            60% { transform: scale(1.15) rotate(10deg); opacity: 1; }
-            100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
-        .auto-success-check-admin svg {
-            width: 60px; height: 60px; stroke: #ffffff; stroke-width: 4;
-            fill: none; stroke-linecap: round; stroke-linejoin: round;
-            stroke-dasharray: 100; stroke-dashoffset: 100;
-            animation: drawCheckAdmin 0.5s ease-out 0.4s forwards;
-        }
-        @keyframes drawCheckAdmin {
-            0% { stroke-dashoffset: 100; }
-            100% { stroke-dashoffset: 0; }
-        }
-        .auto-success-msg-admin {
-            font-size: 1.1rem; color: #d1fae5; text-align: center;
-            font-weight: 700; line-height: 1.8; max-width: 320px;
-        }
-        .auto-success-balance-admin {
-            font-size: 1.8rem; font-weight: 800; color: #4ade80;
-            direction: ltr; text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
-        }
     </style>
 </head>
 <body>
@@ -5227,7 +5722,6 @@ ADMIN_HTML_CONTENT = """
                 <button class="sub-menu-btn" onclick="openDeleteDepositMethodModal()">حذف طريقة</button>
                 <button class="sub-menu-btn" onclick="openViewDepositMethodsModal()">عرض الطرق المضافة</button>
                 <button class="sub-menu-btn" onclick="openAddCurrencyModal()" style="color:#f59e0b; border-color:#f59e0b;">ادارة العملات</button>
-                <button class="sub-menu-btn" onclick="openAutoDepositAdminScreen()" style="color:#4ade80; border-color:#4ade80; font-weight:800;">ادارة الايداعات التلقائية</button>
             </div>
         </div>
 
@@ -5318,65 +5812,6 @@ ADMIN_HTML_CONTENT = """
                 <button class="save-btn" onclick="saveTickerSettings()">حفظ</button>
                 <button class="btn-secondary" onclick="closeModal('tickerSettingsModalOverlay')">إلغاء</button>
             </div>
-        </div>
-
-        <!-- Auto Deposit Admin Screen -->
-        <div id="autoDepositAdminScreen">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #27272a; padding-bottom:12px; margin-bottom:10px;">
-                <span style="font-size:1.15rem; font-weight:800; color:#4ade80;">ادارة الايداعات التلقائية</span>
-                <button class="btn-secondary" onclick="closeAutoDepositAdminScreen()">رجوع</button>
-            </div>
-            <div id="autoDepositListContainer"></div>
-        </div>
-
-        <!-- Auto Deposit Edit Form Fullscreen -->
-        <div id="autoDepositEditScreen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#050508; z-index:100001; overflow-y:auto; padding:20px; flex-direction:column; gap:15px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #27272a; padding-bottom:12px;">
-                <span style="font-size:1.05rem; font-weight:800; color:#38bdf8;" id="autoEditTitle">تعديل طريقة الإيداع</span>
-                <button class="btn-secondary" onclick="closeAutoDepositEditScreen()">رجوع</button>
-            </div>
-            <div class="auto-edit-form-box">
-                <div class="auto-edit-field">
-                    <label>توكن API:</label>
-                    <input type="text" id="autoEditToken" placeholder="أدخل توكن API...">
-                </div>
-                <div class="auto-edit-field">
-                    <label>اسم طريقة جديدة (بحال حبيت غير الاسم):</label>
-                    <input type="text" id="autoEditDisplayName" placeholder="أدخل الاسم...">
-                </div>
-                <div class="auto-edit-field">
-                    <label>سعر الصرف:</label>
-                    <input type="number" id="autoEditExchangeRate" placeholder="أدخل سعر الصرف..." step="0.01" min="0.01">
-                </div>
-                <div class="auto-edit-field">
-                    <label>عنوان طريقة الإيداع:</label>
-                    <input type="text" id="autoEditAddress" placeholder="أدخل عنوان طريقة الإيداع...">
-                </div>
-                <div class="auto-edit-field">
-                    <label>صورة الطريقة:</label>
-                    <input type="file" id="autoEditImageInput" accept="image/*">
-                </div>
-                <div class="auto-edit-field">
-                    <label>وصف الطريقة:</label>
-                    <textarea id="autoEditDescription" placeholder="أدخل وصف الطريقة..."></textarea>
-                </div>
-                <button class="auto-deposit-verify-btn-admin" onclick="saveAutoDepositSettings()">حفظ وتحديث البيانات</button>
-            </div>
-        </div>
-
-        <!-- Auto Deposit Success Screen Admin -->
-        <div id="autoSuccessScreenAdmin">
-            <div class="auto-success-check-admin">
-                <svg viewBox="0 0 52 52">
-                    <path d="M14 27l8 8 16-16"/>
-                </svg>
-            </div>
-            <div class="auto-success-msg-admin" id="autoSuccessMsgAdmin">
-                تمت عملية تطابق المبلغ بنجاح<br>
-                تمت عملية ايداع رصيد التلقائي لحسابك
-            </div>
-            <div class="auto-success-balance-admin" id="autoSuccessBalanceAdmin">0.000 $</div>
-            <button class="save-btn" style="padding:14px 40px; font-size:1rem;" onclick="closeAutoSuccessAdmin()">رجوع للصفحة الرئيسية</button>
         </div>
 
         <!-- Group Modals -->
@@ -6819,149 +7254,6 @@ Code   : -
             }
         }
 
-        // ====== Auto Deposit Admin ======
-        let autoDepositMethodsCache = [];
-
-        function openAutoDepositAdminScreen() {
-            toggleSidebar();
-            document.getElementById('adminMainSection').style.display = 'none';
-            document.getElementById('checkOrdersPage').style.display = 'none';
-            document.getElementById('checkDepositsPage').style.display = 'none';
-            document.getElementById('viewProvidersPage').style.display = 'none';
-            document.getElementById('deleteCategoryPage').style.display = 'none';
-            document.getElementById('deleteProductPage').style.display = 'none';
-            document.getElementById('clientsListScreen').classList.remove('active');
-            document.getElementById('apiImportScreen').classList.remove('active');
-            document.getElementById('autoDepositAdminScreen').classList.add('active');
-
-            loadAutoDepositMethods();
-        }
-
-        function closeAutoDepositAdminScreen() {
-            document.getElementById('autoDepositAdminScreen').classList.remove('active');
-            document.getElementById('adminMainSection').style.display = 'block';
-            fetchStatsAndRender();
-        }
-
-        async function loadAutoDepositMethods() {
-            const container = document.getElementById('autoDepositListContainer');
-            container.innerHTML = '<div style="text-align:center; color:#a1a1aa; font-size:0.85rem; padding:20px;">جاري التحميل...</div>';
-
-            try {
-                const res = await fetch('/api/get_auto_deposit_methods');
-                const methods = await res.json();
-                autoDepositMethodsCache = methods;
-
-                container.innerHTML = '';
-                methods.forEach(m => {
-                    const item = document.createElement('div');
-                    item.className = 'auto-deposit-list-item';
-                    item.innerHTML = `
-                        <div style="display:flex; flex-direction:column; gap:4px;">
-                            <span class="auto-deposit-name">${m.name}</span>
-                            <span class="auto-deposit-status ${m.enabled ? 'enabled' : 'disabled'}">${m.enabled ? 'مفعل' : 'غير مفعل'}</span>
-                        </div>
-                        <button class="auto-deposit-edit-btn" onclick="openAutoDepositEdit('${m.id}')" title="تعديل">
-                            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                        </button>
-                    `;
-                    container.appendChild(item);
-                });
-            } catch (e) {
-                container.innerHTML = '<div style="text-align:center; color:#f87171; font-size:0.85rem; padding:20px;">فشل تحميل البيانات!</div>';
-            }
-        }
-
-        async function openAutoDepositEdit(methodId) {
-            const method = autoDepositMethodsCache.find(m => m.id === methodId);
-            if (!method) return;
-
-            document.getElementById('autoEditTitle').innerText = 'تعديل: ' + method.name;
-            document.getElementById('autoEditToken').value = method.api_token || '';
-            document.getElementById('autoEditDisplayName').value = method.display_name || method.name;
-            document.getElementById('autoEditExchangeRate').value = method.exchange_rate || 1;
-            document.getElementById('autoEditAddress').value = method.address || '';
-            document.getElementById('autoEditDescription').value = method.description || '';
-            document.getElementById('autoEditImageInput').value = '';
-
-            window._editingAutoDepositId = methodId;
-            document.getElementById('autoDepositEditScreen').style.display = 'flex';
-        }
-
-        function closeAutoDepositEditScreen() {
-            document.getElementById('autoDepositEditScreen').style.display = 'none';
-            window._editingAutoDepositId = null;
-        }
-
-        async function saveAutoDepositSettings() {
-            const methodId = window._editingAutoDepositId;
-            if (!methodId) return;
-
-            const token = document.getElementById('autoEditToken').value.trim();
-            const displayName = document.getElementById('autoEditDisplayName').value.trim();
-            const exchangeRate = parseFloat(document.getElementById('autoEditExchangeRate').value);
-            const address = document.getElementById('autoEditAddress').value.trim();
-            const description = document.getElementById('autoEditDescription').value.trim();
-            const fileInput = document.getElementById('autoEditImageInput');
-
-            if (!token) {
-                alert('يرجى إدخال توكن API!');
-                return;
-            }
-            if (isNaN(exchangeRate) || exchangeRate <= 0) {
-                alert('يرجى إدخال سعر صرف صحيح!');
-                return;
-            }
-
-            let imageData = '';
-            if (fileInput.files && fileInput.files[0]) {
-                const reader = new FileReader();
-                imageData = await new Promise((resolve) => {
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(fileInput.files[0]);
-                });
-            }
-
-            const method = autoDepositMethodsCache.find(m => m.id === methodId);
-            if (!method) return;
-
-            const updatedData = {
-                id: methodId,
-                enabled: true,
-                api_token: token,
-                display_name: displayName || method.name,
-                exchange_rate: exchangeRate,
-                address: address,
-                description: description,
-                image: imageData || method.image,
-                coin_id: method.coin_id
-            };
-
-            try {
-                const res = await fetch('/api/save_auto_deposit_method', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedData)
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    alert('تم حفظ الإعدادات بنجاح!');
-                    closeAutoDepositEditScreen();
-                    loadAutoDepositMethods();
-                } else {
-                    alert(data.message || 'حدث خطأ أثناء الحفظ!');
-                }
-            } catch (e) {
-                alert('فشل الاتصال بالخادم!');
-            }
-        }
-
-        function closeAutoSuccessAdmin() {
-            document.getElementById('autoSuccessScreenAdmin').classList.remove('active');
-        }
-
-        // ====== End Auto Deposit Admin ======
-
         let clientsListCache = [];
         let selectedClientEmail = null;
 
@@ -6973,7 +7265,6 @@ Code   : -
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
-            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.add('active');
 
@@ -7129,7 +7420,6 @@ Code   : -
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
             document.getElementById('clientsListScreen').classList.remove('active');
-            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.add('active');
 
             fetch('/api/get_providers')
@@ -7417,6 +7707,7 @@ Code   : -
                 if (a.deposit_card_size) document.getElementById('depositCardSizeRange').value = a.deposit_card_size;
                 if (a.category_card_size) document.getElementById('categoryCardSizeRange').value = a.category_card_size;
 
+                // ألوان الوضع الداكن
                 if (a.dark_bg_color) document.getElementById('darkBgColor').value = a.dark_bg_color;
                 if (a.dark_card_bg) document.getElementById('darkCardBg').value = a.dark_card_bg;
                 if (a.dark_border_color) document.getElementById('darkBorderColor').value = a.dark_border_color;
@@ -7424,6 +7715,7 @@ Code   : -
                 if (a.dark_subtext_color) document.getElementById('darkSubtextColor').value = a.dark_subtext_color;
                 if (a.dark_sidebar_bg) document.getElementById('darkSidebarBg').value = a.dark_sidebar_bg;
 
+                // ألوان الوضع الفاتح
                 if (a.light_bg_color) document.getElementById('lightBgColor').value = a.light_bg_color;
                 if (a.light_card_bg) document.getElementById('lightCardBg').value = a.light_card_bg;
                 if (a.light_border_color) document.getElementById('lightBorderColor').value = a.light_border_color;
@@ -7432,6 +7724,7 @@ Code   : -
                 if (a.light_sidebar_bg) document.getElementById('lightSidebarBg').value = a.light_sidebar_bg;
                 if (a.light_accent_color) document.getElementById('lightAccentColor').value = a.light_accent_color;
 
+                // PWA
                 if (a.pwa_name) document.getElementById('pwaName').value = a.pwa_name;
                 if (a.pwa_short_name) document.getElementById('pwaShortName').value = a.pwa_short_name;
                 if (a.pwa_theme_color) document.getElementById('pwaThemeColor').value = a.pwa_theme_color;
@@ -7481,6 +7774,7 @@ Code   : -
         }
 
         async function saveAppearanceSettings() {
+            // قراءة ألوان الوضع الداكن
             const darkBgColor = document.getElementById('darkBgColor').value;
             const darkCardBg = document.getElementById('darkCardBg').value;
             const darkBorderColor = document.getElementById('darkBorderColor').value;
@@ -7488,6 +7782,7 @@ Code   : -
             const darkSubtextColor = document.getElementById('darkSubtextColor').value;
             const darkSidebarBg = document.getElementById('darkSidebarBg').value;
             
+            // قراءة ألوان الوضع الفاتح
             const lightBgColor = document.getElementById('lightBgColor').value;
             const lightCardBg = document.getElementById('lightCardBg').value;
             const lightBorderColor = document.getElementById('lightBorderColor').value;
@@ -7496,10 +7791,12 @@ Code   : -
             const lightSidebarBg = document.getElementById('lightSidebarBg').value;
             const lightAccentColor = document.getElementById('lightAccentColor').value;
             
+            // قراءة إعدادات PWA
             const pwaName = document.getElementById('pwaName').value;
             const pwaShortName = document.getElementById('pwaShortName').value;
             const pwaThemeColor = document.getElementById('pwaThemeColor').value;
             
+            // قراءة صور PWA
             const pwaIconInput = document.getElementById('pwaIconInput');
             const pwaSplashInput = document.getElementById('pwaSplashInput');
             
@@ -7537,12 +7834,14 @@ Code   : -
                 bottom_nav_height: parseInt(document.getElementById('bottomNavSizeRange').value),
                 deposit_card_size: parseInt(document.getElementById('depositCardSizeRange').value),
                 category_card_size: parseInt(document.getElementById('categoryCardSizeRange').value),
+                // الوضع الداكن
                 dark_bg_color: darkBgColor,
                 dark_card_bg: darkCardBg,
                 dark_border_color: darkBorderColor,
                 dark_text_color: darkTextColor,
                 dark_subtext_color: darkSubtextColor,
                 dark_sidebar_bg: darkSidebarBg,
+                // الوضع الفاتح
                 light_bg_color: lightBgColor,
                 light_card_bg: lightCardBg,
                 light_border_color: lightBorderColor,
@@ -7550,6 +7849,7 @@ Code   : -
                 light_subtext_color: lightSubtextColor,
                 light_sidebar_bg: lightSidebarBg,
                 light_accent_color: lightAccentColor,
+                // PWA
                 pwa_name: pwaName,
                 pwa_short_name: pwaShortName,
                 pwa_theme_color: pwaThemeColor,
@@ -7594,7 +7894,6 @@ Code   : -
             document.getElementById('checkDepositsPage').style.display = 'none';
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
-            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('deleteCategoryPage').style.display = 'flex';
@@ -7847,7 +8146,6 @@ Code   : -
             document.getElementById('checkDepositsPage').style.display = 'none';
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
-            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('deleteProductPage').style.display = 'flex';
@@ -8209,7 +8507,6 @@ Code   : -
             document.getElementById('checkDepositsPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
-            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('viewProvidersPage').style.display = 'flex';
@@ -8426,6 +8723,7 @@ Code   : -
             }, 600);
         }
 
+        // ====== Subcategory Group Management ======
         let groupsCache = {};
 
         function openAddGroupModal() {
@@ -8631,6 +8929,8 @@ Code   : -
                 alert('فشل الاتصال بالخادم!');
             }
         }
+
+        // ====== End Subcategory Group Management ======
 
         function openAddCategoryModal() {
             toggleSidebar();
@@ -9154,7 +9454,6 @@ Code   : -
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
-            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('checkOrdersPage').style.display = 'flex';
@@ -9236,7 +9535,6 @@ Code   : -
             document.getElementById('viewProvidersPage').style.display = 'none';
             document.getElementById('deleteCategoryPage').style.display = 'none';
             document.getElementById('deleteProductPage').style.display = 'none';
-            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('checkDepositsPage').style.display = 'flex';
@@ -9523,7 +9821,6 @@ Code   : -
             document.getElementById('deleteProductPage').style.display = 'none';
             document.getElementById('clientsListScreen').classList.remove('active');
             document.getElementById('apiImportScreen').classList.remove('active');
-            document.getElementById('autoDepositAdminScreen').classList.remove('active');
             
             document.getElementById('allOrdersScreen').classList.add('active');
             document.getElementById('adminOrderSearchInput').value = '';
@@ -9664,7 +9961,6 @@ Code   : -
 </html>
 """
 
-
 # --------------------------------------------------
 # 4. السيرفر ومعالجة الطلبات
 # --------------------------------------------------
@@ -9708,6 +10004,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
             save_json_file(ORDERS_FILE, ORDERS_DATA)
 
     def do_GET(self):
+        # First, check maintenance mode - but allow admin routes
         if not self.path.startswith("/admin") and not self.path.startswith("/api/maintenance") and MAINTENANCE_DATA.get("is_active"):
             self.send_response(503)
             self.send_header("Content-type", "text/html; charset=utf-8")
@@ -9792,6 +10089,7 @@ class WebAppHandler(BaseHTTPRequestHandler):
                     self.send_response(404)
                     self.end_headers()
             else:
+                # أيقونة افتراضية SVG
                 default_svg = '''<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
                     <rect width="512" height="512" rx="100" fill="#00897b"/>
                     <text x="50%" y="45%" fill="#fff" font-size="80" text-anchor="middle" dominant-baseline="middle" font-weight="bold" font-family="Arial">SYRIA</text>
@@ -9921,12 +10219,6 @@ self.addEventListener('fetch', event => {
             self.send_header("Content-type", "application/json; charset=utf-8")
             self.end_headers()
             self.wfile.write(json.dumps(SUBCATEGORY_GROUPS_DATA, ensure_ascii=False).encode("utf-8"))
-
-        elif self.path == "/api/get_auto_deposit_methods":
-            self.send_response(200)
-            self.send_header("Content-type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps(AUTO_DEPOSIT_DATA, ensure_ascii=False).encode("utf-8"))
 
         elif self.path == "/api-docs":
             self.send_response(200)
@@ -10504,182 +10796,6 @@ self.addEventListener('fetch', event => {
             self.end_headers()
             self.wfile.write(json.dumps({"status": "success"}).encode("utf-8"))
 
-        elif self.path == "/api/save_auto_deposit_method":
-            method_id = data.get('id')
-            updated_method = {
-                "id": method_id,
-                "name": data.get('display_name', data.get('name', '')),
-                "enabled": data.get('enabled', True),
-                "api_token": data.get('api_token', ''),
-                "display_name": data.get('display_name', ''),
-                "exchange_rate": float(data.get('exchange_rate', 1)),
-                "address": data.get('address', ''),
-                "image": data.get('image', ''),
-                "description": data.get('description', ''),
-                "coin_id": data.get('coin_id', 'USD')
-            }
-            
-            found = False
-            for i, m in enumerate(AUTO_DEPOSIT_DATA):
-                if m.get('id') == method_id:
-                    AUTO_DEPOSIT_DATA[i] = updated_method
-                    found = True
-                    break
-            
-            if not found:
-                AUTO_DEPOSIT_DATA.append(updated_method)
-            
-            save_json_file(AUTO_DEPOSIT_FILE, AUTO_DEPOSIT_DATA)
-            
-            self.send_response(200)
-            self.send_header("Content-type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps({"status": "success"}, ensure_ascii=False).encode("utf-8"))
-
-        elif self.path == "/api/verify_auto_deposit":
-            email = data.get('email')
-            method_id = data.get('method_id')
-            amount = float(data.get('amount', 0))
-            tx_id = data.get('tx_id', '').strip()
-
-            if not email or not tx_id:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "بيانات غير مكتملة!"}, ensure_ascii=False).encode("utf-8"))
-                return
-
-            if email not in USERS_DATA:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "المستخدم غير موجود!"}, ensure_ascii=False).encode("utf-8"))
-                return
-
-            # التحقق من أن رقم العملية لم يستخدم من قبل
-            if tx_id in SHAMCASH_TX_DATA:
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "رقم العملية مستخدم من قبل!"}, ensure_ascii=False).encode("utf-8"))
-                return
-
-            method = next((m for m in AUTO_DEPOSIT_DATA if m.get('id') == method_id), None)
-            if not method or not method.get('enabled') or not method.get('api_token'):
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": "طريقة الإيداع غير مفعلة أو غير مهيأة!"}, ensure_ascii=False).encode("utf-8"))
-                return
-
-            api_token = method.get('api_token')
-            coin_id = method.get('coin_id', 'USD')
-
-            try:
-                accounts_res = shamcash_get_accounts(api_token)
-                if accounts_res.get('status') != 'success' or not accounts_res.get('data'):
-                    self.send_response(200)
-                    self.send_header("Content-type", "application/json; charset=utf-8")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"status": "error", "message": "فشل الاتصال بحساب شام كاش!"}, ensure_ascii=False).encode("utf-8"))
-                    return
-
-                accounts = accounts_res.get('data', [])
-                account_id = None
-                for acc in accounts:
-                    if acc.get('coin_id') == coin_id or acc.get('coin') == coin_id:
-                        account_id = acc.get('id')
-                        break
-                
-                if not account_id and accounts:
-                    account_id = accounts[0].get('id')
-
-                if not account_id:
-                    self.send_response(200)
-                    self.send_header("Content-type", "application/json; charset=utf-8")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"status": "error", "message": "لا يوجد حساب مرتبط بهذه العملة!"}, ensure_ascii=False).encode("utf-8"))
-                    return
-
-                tx_res = shamcash_get_transactions(api_token, account_id, transaction_ids=[tx_id], coin_id=coin_id, limit=50)
-
-                if tx_res.get('status') != 'success':
-                    self.send_response(200)
-                    self.send_header("Content-type", "application/json; charset=utf-8")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"status": "error", "message": "فشل جلب المعاملات!"}, ensure_ascii=False).encode("utf-8"))
-                    return
-
-                transactions = tx_res.get('data', {}).get('transactions', [])
-                matched_tx = None
-                for tx in transactions:
-                    tx_amount = float(tx.get('amount', 0))
-                    tx_currency = tx.get('coin_id', tx.get('coin', ''))
-                    
-                    if str(tx.get('id', '')) == str(tx_id) or str(tx.get('transaction_id', '')) == str(tx_id):
-                        if abs(tx_amount - amount) < 0.01:
-                            if tx_currency == coin_id or not tx_currency:
-                                matched_tx = tx
-                                break
-
-                if not matched_tx:
-                    self.send_response(200)
-                    self.send_header("Content-type", "application/json; charset=utf-8")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"status": "error", "message": "العملية غير موجودة، تأكد من رقم العملية والمبلغ والعملة."}, ensure_ascii=False).encode("utf-8"))
-                    return
-
-                SHAMCASH_TX_DATA[tx_id] = {
-                    "email": email,
-                    "method_id": method_id,
-                    "amount": amount,
-                    "coin_id": coin_id,
-                    "verified_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "tx_details": matched_tx
-                }
-                save_json_file(SHAMCASH_TX_FILE, SHAMCASH_TX_DATA)
-
-                exchange_rate = float(method.get('exchange_rate', 1))
-                dollar_amount = round(amount / exchange_rate, 3)
-                user = USERS_DATA[email]
-                old_balance = round(float(user.get('balance', 0)), 3)
-                new_balance = round(old_balance + dollar_amount, 3)
-                user['balance'] = new_balance
-                save_json_file(USERS_FILE, USERS_DATA)
-
-                send_telegram_auto_deposit_notification(
-                    method_name=method.get('display_name', method.get('name', '')),
-                    amount=amount,
-                    tx_id=tx_id,
-                    email=email,
-                    user_balance=old_balance,
-                    new_balance=new_balance,
-                    tx_details=matched_tx
-                )
-
-                add_user_notification(
-                    email=email,
-                    order_uuid=f"auto_deposit_{tx_id}",
-                    message=f"تم إيداع {formatBalance(dollar_amount)}$ تلقائياً بنجاح",
-                    status="success"
-                )
-
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({
-                    "status": "success",
-                    "new_balance": new_balance,
-                    "user_id": user.get('id', 1001)
-                }, ensure_ascii=False).encode("utf-8"))
-
-            except Exception as e:
-                logging.error(f"خطأ في التحقق التلقائي: {e}")
-                self.send_response(200)
-                self.send_header("Content-type", "application/json; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "error", "message": f"فشل الاتصال بخدمة شام كاش: {str(e)}"}, ensure_ascii=False).encode("utf-8"))
-
         elif self.path == "/api/register":
             email = data.get('email', '').strip()
             phone = data.get('phone', '')
@@ -10834,6 +10950,7 @@ self.addEventListener('fetch', event => {
             APPEARANCE_DATA['deposit_card_size'] = int(data.get('deposit_card_size', 100))
             APPEARANCE_DATA['category_card_size'] = int(data.get('category_card_size', 100))
             
+            # الوضع الداكن
             APPEARANCE_DATA['dark_bg_color'] = data.get('dark_bg_color', '#050508')
             APPEARANCE_DATA['dark_card_bg'] = data.get('dark_card_bg', '#121212')
             APPEARANCE_DATA['dark_border_color'] = data.get('dark_border_color', '#27272a')
@@ -10842,6 +10959,7 @@ self.addEventListener('fetch', event => {
             APPEARANCE_DATA['dark_sidebar_bg'] = data.get('dark_sidebar_bg', '#09090f')
             APPEARANCE_DATA['dark_input_bg'] = data.get('dark_input_bg', '#000000')
             
+            # الوضع الفاتح
             APPEARANCE_DATA['light_bg_color'] = data.get('light_bg_color', '#f4f4f5')
             APPEARANCE_DATA['light_card_bg'] = data.get('light_card_bg', '#ffffff')
             APPEARANCE_DATA['light_border_color'] = data.get('light_border_color', '#e4e4e7')
@@ -10851,6 +10969,7 @@ self.addEventListener('fetch', event => {
             APPEARANCE_DATA['light_input_bg'] = data.get('light_input_bg', '#f4f4f5')
             APPEARANCE_DATA['light_accent_color'] = data.get('light_accent_color', '#0284c7')
             
+            # PWA
             if data.get('pwa_name'): APPEARANCE_DATA['pwa_name'] = data.get('pwa_name')
             if data.get('pwa_short_name'): APPEARANCE_DATA['pwa_short_name'] = data.get('pwa_short_name')
             if data.get('pwa_theme_color'): APPEARANCE_DATA['pwa_theme_color'] = data.get('pwa_theme_color')
@@ -11201,83 +11320,144 @@ self.addEventListener('fetch', event => {
                 if not url.endswith('/'):
                     url += '/'
                 
+                # 1. إضافة القسم الرئيسي
                 CATEGORIES_DATA[category_name] = image
                 save_json_file(CATEGORIES_FILE, CATEGORIES_DATA)
                 
-                content_url = f"{url}client/api/content/{category_id}"
-                content_data = make_api_request(content_url, token, timeout=20)
+                # 2. سحب الشجرة كاملة بشكل متكرر
+                logging.info(f"بدء سحب الشجرة الكاملة من API للقسم: {original_name} (ID: {category_id})")
+                tree_items = fetch_api_tree_recursive(token, url, category_id, parent_id=0, depth=0)
+                logging.info(f"تم سحب {len(tree_items)} عنصر من API")
                 
+                # 3. معالجة العناصر المسحوبة وبناء الشجرة في النظام المحلي
+                local_items_map = {}  # api_id -> local_name
                 imported_products = []
                 imported_subcategories = []
                 
-                if content_data.get('status') == 'OK' and content_data.get('data'):
-                    data_section = content_data.get('data', {})
-                    
-                    products = data_section.get('products', [])
-                    if isinstance(products, list):
-                        for prod in products:
-                            prod_name = prod.get('name', '')
-                            prod_image = prod.get('category_img', '') or prod.get('image', '')
-                            
-                            if prod_image and not prod_image.startswith('http'):
-                                prod_image = url.rstrip('/') + '/' + prod_image.lstrip('/')
-                            
-                            if prod_name:
-                                existing = [p for p in PRODUCTS_DATA if p.get('name') == prod_name and p.get('category') == category_name]
-                                if not existing:
-                                    PRODUCTS_DATA.append({
-                                        "name": prod_name,
-                                        "category": category_name,
-                                        "image": prod_image
-                                    })
-                                    imported_products.append(prod_name)
-                    
-                    subcats = data_section.get('categories', [])
-                    if isinstance(subcats, list):
-                        for subcat in subcats:
-                            subcat_id = subcat.get('id')
-                            subcat_name = subcat.get('name', '')
-                            subcat_image = subcat.get('image', '')
-                            
-                            if subcat_image and not subcat_image.startswith('http'):
-                                subcat_image = url.rstrip('/') + '/' + subcat_image.lstrip('/')
-                            
-                            if subcat_name:
-                                target_product = imported_products[0] if imported_products else category_name
-                                
-                                existing = [s for s in SUBCATEGORIES_DATA if s.get('name') == subcat_name and s.get('product') == target_product]
-                                if not existing:
-                                    new_sub = {
-                                        "name": subcat_name,
-                                        "price": 0,
-                                        "base_price": 0,
-                                        "product": target_product,
-                                        "provider_name": provider_name,
-                                        "api_product_id": str(subcat_id),
-                                        "description": f"فئة مستوردة من {provider_name}",
-                                        "image": subcat_image,
-                                        "is_counter": False,
-                                        "imported_from_api": True,
-                                        "api_import_key": f"{provider_name}_{original_name}",
-                                        "profit_margin": profit_margin
-                                    }
-                                    SUBCATEGORIES_DATA.append(new_sub)
-                                    imported_subcategories.append(subcat_name)
+                # ترتيب العناصر حسب العمق (الأقل عمقاً أولاً)
+                tree_items_sorted = sorted(tree_items, key=lambda x: x.get('depth', 0))
                 
-                products_url = f"{url}client/api/products"
-                api_products = make_api_request(products_url, token, timeout=20)
-                
-                if isinstance(api_products, list):
-                    for subcat in SUBCATEGORIES_DATA:
-                        if subcat.get('api_import_key') == f"{provider_name}_{original_name}":
-                            api_id = str(subcat.get('api_product_id', ''))
-                            for ap in api_products:
-                                if str(ap.get('id')) == api_id:
-                                    base_price = float(ap.get('base_price', ap.get('price', 0)))
-                                    new_price = round(base_price * (1 + (profit_margin / 100.0)), 3)
-                                    subcat['base_price'] = base_price
-                                    subcat['price'] = new_price
-                                    break
+                for item in tree_items_sorted:
+                    item_type = item.get('type')
+                    api_id = item.get('id')
+                    item_name = item.get('name', '')
+                    item_image = item.get('image', '')
+                    item_parent_id = item.get('parent_id', 0)
+                    
+                    if not item_name:
+                        continue
+                    
+                    if item_type == 'product':
+                        # هذا منتج - نضيفه لقائمة المنتجات
+                        if item_parent_id == 0 or item_parent_id == category_id:
+                            target_category = category_name
+                            target_product_name = item_name
+                        else:
+                            local_parent_name = local_items_map.get(str(item_parent_id))
+                            if local_parent_name:
+                                target_category = category_name
+                                target_product_name = local_parent_name
+                            else:
+                                target_category = category_name
+                                target_product_name = item_name
+                        
+                        existing = [p for p in PRODUCTS_DATA if p.get('name') == target_product_name and p.get('category') == target_category]
+                        if not existing:
+                            PRODUCTS_DATA.append({
+                                "name": target_product_name,
+                                "category": target_category,
+                                "image": item_image,
+                                "api_product_id": str(api_id),
+                                "api_parent_id": item_parent_id,
+                                "imported_from_api": True,
+                                "api_import_key": f"{provider_name}_{original_name}"
+                            })
+                            imported_products.append(target_product_name)
+                        
+                        local_items_map[str(api_id)] = target_product_name
+                        
+                        base_price = item.get('base_price', 0)
+                        final_price = round(float(base_price) * (1 + (profit_margin / 100.0)), 3)
+                        
+                        existing_sub = [s for s in SUBCATEGORIES_DATA if s.get('name') == item_name and s.get('product') == target_product_name]
+                        if not existing_sub:
+                            qty_values = item.get('qty_values')
+                            is_counter = False
+                            counter_min_qty = None
+                            counter_max_qty = None
+                            counter_min_price = None
+                            
+                            if qty_values:
+                                if isinstance(qty_values, dict) and 'min' in qty_values:
+                                    is_counter = True
+                                    counter_min_qty = int(qty_values.get('min', 1))
+                                    counter_max_qty = int(qty_values.get('max', 0)) if qty_values.get('max') else None
+                                    counter_min_price = final_price
+                            
+                            new_sub = {
+                                "name": item_name,
+                                "price": final_price,
+                                "base_price": base_price,
+                                "product": target_product_name,
+                                "provider_name": provider_name,
+                                "api_product_id": str(api_id),
+                                "description": f"فئة مستوردة من {provider_name}",
+                                "image": item_image,
+                                "is_counter": is_counter,
+                                "imported_from_api": True,
+                                "api_import_key": f"{provider_name}_{original_name}",
+                                "profit_margin": profit_margin,
+                                "params": item.get('params', [])
+                            }
+                            
+                            if is_counter:
+                                new_sub['counter_min_qty'] = counter_min_qty
+                                new_sub['counter_max_qty'] = counter_max_qty
+                                new_sub['counter_min_price'] = counter_min_price
+                                new_sub['price'] = counter_min_price
+                            
+                            SUBCATEGORIES_DATA.append(new_sub)
+                            imported_subcategories.append(item_name)
+                    
+                    elif item_type == 'subcategory':
+                        # هذا قسم فرعي
+                        existing = [p for p in PRODUCTS_DATA if p.get('name') == item_name and p.get('category') == category_name]
+                        if not existing:
+                            PRODUCTS_DATA.append({
+                                "name": item_name,
+                                "category": category_name,
+                                "image": item_image,
+                                "api_id": str(api_id),
+                                "api_parent_id": item_parent_id,
+                                "imported_from_api": True,
+                                "api_import_key": f"{provider_name}_{original_name}",
+                                "is_subcategory": True
+                            })
+                        
+                        local_items_map[str(api_id)] = item_name
+                        
+                        base_price = item.get('base_price', 0)
+                        if base_price > 0:
+                            final_price = round(float(base_price) * (1 + (profit_margin / 100.0)), 3)
+                            existing_sub = [s for s in SUBCATEGORIES_DATA if s.get('name') == item_name and s.get('product') == category_name]
+                            if not existing_sub:
+                                new_sub = {
+                                    "name": item_name,
+                                    "price": final_price,
+                                    "base_price": base_price,
+                                    "product": category_name,
+                                    "provider_name": provider_name,
+                                    "api_product_id": str(api_id),
+                                    "description": f"قسم فرعي مستورد من {provider_name}",
+                                    "image": item_image,
+                                    "is_counter": False,
+                                    "imported_from_api": True,
+                                    "api_import_key": f"{provider_name}_{original_name}",
+                                    "profit_margin": profit_margin,
+                                    "params": item.get('params', [])
+                                }
+                                SUBCATEGORIES_DATA.append(new_sub)
+                                imported_subcategories.append(item_name)
                 
                 save_json_file(PRODUCTS_FILE, PRODUCTS_DATA)
                 save_json_file(SUBCATEGORIES_FILE, SUBCATEGORIES_DATA)
@@ -11292,9 +11472,12 @@ self.addEventListener('fetch', event => {
                     "imported_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "last_price_check": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "products_count": len(imported_products),
-                    "subcategories_count": len(imported_subcategories)
+                    "subcategories_count": len(imported_subcategories),
+                    "tree_items_count": len(tree_items)
                 }
                 save_json_file(API_IMPORTS_FILE, API_IMPORTS_DATA)
+                
+                logging.info(f"تم استيراد الشجرة الكاملة: {len(imported_products)} منتج، {len(imported_subcategories)} فئة")
                 
                 self.send_response(200)
                 self.send_header("Content-type", "application/json; charset=utf-8")
@@ -11303,11 +11486,14 @@ self.addEventListener('fetch', event => {
                     "status": "success",
                     "message": "تم الاستيراد بنجاح",
                     "products_count": len(imported_products),
-                    "subcategories_count": len(imported_subcategories)
+                    "subcategories_count": len(imported_subcategories),
+                    "tree_items_count": len(tree_items)
                 }, ensure_ascii=False).encode("utf-8"))
                 
             except Exception as e:
                 logging.error(f"خطأ في استيراد القسم من API: {e}")
+                import traceback
+                traceback.print_exc()
                 self.send_response(200)
                 self.send_header("Content-type", "application/json; charset=utf-8")
                 self.end_headers()
